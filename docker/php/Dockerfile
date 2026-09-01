@@ -103,3 +103,65 @@ EXPOSE 9000
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
+
+# ---------------------------------------------------------------------------
+# Stage 4: all-in-one — postgres + nginx + php-fpm + queue + scheduler en un
+# solo contenedor. `docker run -p 8000:80 imagen` y listo, sin compose.
+# ---------------------------------------------------------------------------
+FROM runtime AS standalone
+
+USER root
+
+RUN apk add --no-cache \
+        postgresql17 \
+        postgresql17-client \
+        nginx \
+        supervisor \
+        su-exec
+
+COPY docker/standalone/nginx.conf /etc/nginx/nginx.conf
+COPY docker/standalone/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/standalone/entrypoint.sh /usr/local/bin/standalone-entrypoint
+COPY docker/standalone/wait-for-db.sh /usr/local/bin/wait-for-db
+COPY docker/standalone/wait-for-app.sh /usr/local/bin/wait-for-app
+COPY docker/standalone/app-start.sh /usr/local/bin/app-start
+
+RUN chmod +x /usr/local/bin/standalone-entrypoint \
+              /usr/local/bin/wait-for-db \
+              /usr/local/bin/wait-for-app \
+              /usr/local/bin/app-start \
+    && mkdir -p /run/postgresql /run/nginx /var/lib/nginx/tmp /var/lib/postgresql/data \
+    && chown -R postgres:postgres /run/postgresql /var/lib/postgresql \
+    && chown -R www-data:www-data /var/lib/nginx \
+    && ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
+
+# Valores por defecto: sin esto el contenedor no sabria a que base conectarse.
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    APP_URL=http://localhost:8000 \
+    LOG_CHANNEL=stack \
+    LOG_STACK=single \
+    LOG_LEVEL=info \
+    DB_CONNECTION=pgsql \
+    DB_HOST=127.0.0.1 \
+    DB_PORT=5432 \
+    DB_DATABASE=legumexapps_tic_formatos \
+    DB_USERNAME=postgres \
+    DB_PASSWORD=mysecretpassword \
+    SESSION_DRIVER=database \
+    CACHE_STORE=database \
+    QUEUE_CONNECTION=database \
+    FILESYSTEM_DISK=local \
+    PGDATA=/var/lib/postgresql/data
+
+# Datos de postgres + APP_KEY/JWT_SECRET generados: montar un volumen aqui para
+# no perderlos al recrear el contenedor.
+VOLUME ["/var/lib/postgresql"]
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+    CMD php -r 'exit(@file_get_contents("http://127.0.0.1/up") === false ? 1 : 0);'
+
+ENTRYPOINT ["standalone-entrypoint"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

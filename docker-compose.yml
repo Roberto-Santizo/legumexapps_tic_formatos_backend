@@ -24,6 +24,9 @@ x-app-service: &app-service
     build:
         context: .
         dockerfile: docker/php/Dockerfile
+        # Sin esto se construiria el ultimo stage (standalone, con su propio
+        # postgres dentro). Aqui la base es el servicio db.
+        target: runtime
     image: legumexapps-tic-formatos:latest
     restart: unless-stopped
     environment: *app-environment
