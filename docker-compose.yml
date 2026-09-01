@@ -19,6 +19,9 @@ x-app-environment: &app-environment
     QUEUE_CONNECTION: database
     FILESYSTEM_DISK: local
     JWT_SECRET: "${JWT_SECRET}"
+    ADMIN_NAME: "${ADMIN_NAME:-Administrador}"
+    ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+    ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
 
 x-app-service: &app-service
     build:

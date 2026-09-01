@@ -123,4 +123,22 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Usuario administrador inicial
+    |--------------------------------------------------------------------------
+    |
+    | Credenciales que usa InitialUserSeeder para dejar un usuario con el que
+    | poder entrar en un despliegue recien levantado. El seeder solo crea el
+    | usuario si no existe, asi que cambiar la contrasena aqui despues del
+    | primer arranque no tiene efecto.
+    |
+    */
+
+    'initial_admin' => [
+        'name' => env('ADMIN_NAME', 'Administrador'),
+        'username' => env('ADMIN_USERNAME', 'admin'),
+        'password' => env('ADMIN_PASSWORD', 'admin123'),
+    ],
+
 ];

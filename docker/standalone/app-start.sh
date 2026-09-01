@@ -8,6 +8,10 @@ wait-for-db
 
 su-exec www-data php /var/www/html/artisan migrate --force --no-interaction
 
+# Usuario administrador inicial. El seeder es idempotente, asi que correrlo en
+# cada arranque no duplica ni pisa nada.
+su-exec www-data php /var/www/html/artisan db:seed --class='Database\Seeders\InitialUserSeeder' --force --no-interaction
+
 if [ "$APP_ENV" != "local" ]; then
     su-exec www-data php /var/www/html/artisan config:cache
     su-exec www-data php /var/www/html/artisan route:cache

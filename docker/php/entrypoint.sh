@@ -68,6 +68,9 @@ if [ "$1" = "php-fpm" ] || [ "$RUN_MIGRATIONS" = "true" ]; then
 
     php artisan migrate --force --no-interaction
 
+    # Usuario administrador inicial (idempotente).
+    php artisan db:seed --class='Database\Seeders\InitialUserSeeder' --force --no-interaction
+
     if [ "$APP_ENV" != "local" ]; then
         php artisan config:cache
         php artisan route:cache
