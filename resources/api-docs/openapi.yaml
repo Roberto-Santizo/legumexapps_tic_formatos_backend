@@ -32,8 +32,14 @@ info:
   version: 1.0.0
 
 servers:
+  # URL relativa: Swagger UI la resuelve contra el origen desde el que se abrio
+  # la documentacion, asi que "Try it out" funciona igual en localhost, en una
+  # VM o detras de un dominio, sin tocar el spec ni pasar por CORS.
+  - url: /api
+    description: Este mismo servidor
+  # Alternativa para apuntar a un despliegue distinto desde el selector.
   - url: '{schema}://{host}/api'
-    description: Servidor de la API
+    description: Otro servidor
     variables:
       schema:
         default: http
