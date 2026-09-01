@@ -1,0 +1,72 @@
+name: Build and Push Docker Image
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+concurrency:
+    group: docker-publish-${{ github.ref }}
+    cancel-in-progress: false
+
+env:
+    IMAGE_NAME: robertosantizo/legumexapps_tic_backend
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Calcular siguiente version (correlativo 0.0.X)
+              id: version
+              run: |
+                  git fetch --tags --force
+                  LATEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1)
+                  if [ -z "$LATEST" ]; then
+                      NEXT="0.0.1"
+                  else
+                      CURRENT="${LATEST#v}"
+                      MAJOR="${CURRENT%%.*}"
+                      REST="${CURRENT#*.}"
+                      MINOR="${REST%%.*}"
+                      PATCH="${REST#*.}"
+                      NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+                  fi
+                  echo "Version anterior: ${LATEST:-ninguna} -> nueva: $NEXT"
+                  echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Login en Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Build y push de la imagen
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  file: docker/php/Dockerfile
+                  target: runtime
+                  push: true
+                  tags: |
+                      ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+                      ${{ env.IMAGE_NAME }}:latest
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+            - name: Crear tag de version en el repositorio
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
+                  git push origin "v${{ steps.version.outputs.version }}"
