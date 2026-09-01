@@ -1,0 +1,423 @@
+openapi: 3.0.3
+
+info:
+  title: Legumex TIC Formatos API
+  description: |
+    Documentación de la API de Legumex TIC Formatos.
+
+    ## Autenticación
+
+    La API usa **JWT (JSON Web Token)** vía `tymon/jwt-auth`.
+
+    1. Obtén un token con `POST /api/login`.
+    2. Envíalo en cada petición protegida mediante la cabecera:
+       `Authorization: Bearer <token>`
+
+    El token expira según `JWT_TTL` (60 minutos por defecto).
+
+    ## Formato de respuesta
+
+    Todas las respuestas emitidas por la aplicación siguen la misma envoltura
+    (`App\Helpers\ResponseHandler`):
+
+    ```json
+    {
+      "statusCode": 200,
+      "message": "Sesión Iniciada Correctamente",
+      "data": {}
+    }
+    ```
+
+    En caso de error, `data` es `null` y `message` contiene la descripción del fallo.
+  version: 1.0.0
+
+servers:
+  - url: '{schema}://{host}/api'
+    description: Servidor de la API
+    variables:
+      schema:
+        default: http
+        enum: [http, https]
+      host:
+        default: localhost:8000
+
+tags:
+  - name: Auth
+    description: Inicio de sesión y verificación de sesión activa
+  - name: Usuarios
+    description: |
+      Administración de usuarios. **Todas las operaciones de creación, listado y
+      edición están restringidas al rol `admin`** mediante los middlewares
+      `jwt.auth` + `admin`.
+
+paths:
+
+  /login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      description: |
+        Valida las credenciales del usuario y devuelve un JWT junto con sus datos básicos.
+
+        Ruta: `POST /api/login` — **no requiere autenticación**.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                summary: Credenciales válidas
+                value:
+                  username: rsantizo
+                  password: secret123
+      responses:
+        '200':
+          description: Sesión iniciada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Sesión Iniciada Correctamente
+                      data:
+                        $ref: '#/components/schemas/AuthenticatedUser'
+        '400':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                statusCode: 400
+                message: Credenciales inválidas
+                data: null
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /register:
+    post:
+      tags: [Usuarios]
+      summary: Registrar un usuario nuevo
+      description: |
+        Crea un usuario en el sistema y devuelve sus datos básicos.
+
+        Ruta: `POST /api/register` — protegida por los middlewares `jwt.auth` + `admin`.
+
+        **Sólo un usuario con rol `admin` puede crear usuarios.** Cualquier otro rol
+        (incluido `adminagricola`) recibe `403 No autorizado`.
+
+        La contraseña se almacena hasheada y nunca se devuelve en la respuesta.
+        El endpoint **no** emite un token: el usuario creado debe iniciar sesión
+        con `POST /api/login`.
+      operationId: register
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              default:
+                summary: Usuario estándar
+                value:
+                  name: Roberto Santizo
+                  username: rsantizo
+                  password: secret123
+                  password_confirmation: secret123
+                  role: user
+              administrador:
+                summary: Nuevo administrador
+                value:
+                  name: Ana López
+                  username: alopez
+                  password: secret123
+                  password_confirmation: secret123
+                  role: admin
+      responses:
+        '201':
+          description: Usuario creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Usuario Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/CreatedUser'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: |
+            Los datos enviados no pasaron la validación (`RegisterRequest`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                usernameDuplicado:
+                  summary: El username ya existe
+                  value:
+                    message: El usuario ya se encuentra registrado.
+                    errors:
+                      username: ['El usuario ya se encuentra registrado.']
+                rolInvalido:
+                  summary: Rol fuera del catálogo permitido
+                  value:
+                    message: El rol seleccionado no es válido.
+                    errors:
+                      role: ['El rol seleccionado no es válido.']
+                passwordSinConfirmar:
+                  summary: La confirmación no coincide
+                  value:
+                    message: La confirmación de contraseña no coincide.
+                    errors:
+                      password: ['La confirmación de contraseña no coincide.']
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /check-status:
+    get:
+      tags: [Auth]
+      summary: Verificar sesión y renovar token
+      description: |
+        Devuelve los datos del usuario autenticado y emite un **token nuevo** a partir
+        del usuario actual. Útil para rehidratar la sesión en el cliente al recargar
+        la aplicación.
+
+        Ruta: `GET /api/check-status` — protegida por el middleware `jwt.auth`.
+      operationId: checkStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usuario obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Usuario Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/AuthenticatedUser'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Token JWT obtenido en `POST /api/login`. Enviar como: `Authorization: Bearer <token>`'
+
+  schemas:
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Nombre de usuario. Campo obligatorio.
+          example: rsantizo
+        password:
+          type: string
+          format: password
+          description: Contraseña en texto plano. Campo obligatorio.
+          example: secret123
+
+    RegisterRequest:
+      type: object
+      required: [name, username, password, password_confirmation, role]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nombre completo del usuario. Obligatorio.
+          example: Roberto Santizo
+        username:
+          type: string
+          maxLength: 255
+          description: Nombre de usuario para iniciar sesión. Obligatorio y único en `users.username`.
+          example: rsantizo
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Contraseña en texto plano. Obligatoria, mínimo 8 caracteres. Se almacena hasheada.
+          example: secret123
+        password_confirmation:
+          type: string
+          format: password
+          description: Repetición exacta de `password`. Obligatoria (regla `confirmed`).
+          example: secret123
+        role:
+          $ref: '#/components/schemas/Role'
+
+    Role:
+      type: string
+      description: |
+        Rol del usuario. Determina el acceso según los middlewares:
+        - `admin`: acceso total, único rol que puede crear, listar y editar usuarios.
+        - `adminagricola`: pasa el middleware `administrate_agricola`.
+        - `user`: acceso básico.
+      enum: [admin, adminagricola, user]
+      example: user
+
+    CreatedUser:
+      type: object
+      description: Datos del usuario recién creado. Nunca incluye la contraseña.
+      properties:
+        id:
+          type: integer
+          description: Identificador del usuario.
+          example: 7
+        name:
+          type: string
+          example: Roberto Santizo
+        username:
+          type: string
+          example: rsantizo
+        role:
+          $ref: '#/components/schemas/Role'
+
+    AuthenticatedUser:
+      type: object
+      description: Datos del usuario autenticado junto con su token JWT.
+      properties:
+        name:
+          type: string
+          description: Nombre completo del usuario.
+          example: Roberto Santizo
+        role:
+          type: string
+          description: Rol del usuario, usado por los middlewares `admin` y `administrate_agricola`.
+          example: admin
+        token:
+          type: string
+          description: JWT firmado. Expira según `JWT_TTL` (60 minutos por defecto).
+          example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0L2FwaS9sb2dpbiJ9.4Q6bR0m1kZ2v8pXsN3tYcE7fJ9wA1dLhV5uG0oKq
+
+    SuccessResponse:
+      type: object
+      description: Envoltura estándar de respuesta exitosa (`ResponseHandler::success`).
+      required: [statusCode, message, data]
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Operación realizada correctamente
+        data:
+          description: Carga útil de la respuesta.
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      description: Envoltura estándar de error (`ResponseHandler::error`).
+      required: [statusCode, message, data]
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Credenciales inválidas
+        data:
+          nullable: true
+          example: null
+
+    ValidationErrorResponse:
+      type: object
+      description: Error de validación emitido por Laravel (`FormRequest`).
+      properties:
+        message:
+          type: string
+          example: El campo de usuario es obligatorio.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            username: ['El campo de usuario es obligatorio.']
+            password: ['El campo de contraseña es obligatorio.']
+
+  responses:
+
+    ValidationError:
+      description: Los datos enviados no pasaron la validación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+
+    Unauthenticated:
+      description: Token ausente, inválido o expirado.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: Token not provided
+          examples:
+            sinToken:
+              summary: No se envió la cabecera Authorization
+              value:
+                message: Token not provided
+            expirado:
+              summary: Token expirado
+              value:
+                message: Token has expired
+
+    Forbidden:
+      description: |
+        El usuario está autenticado pero no tiene el rol requerido
+        (respuesta del middleware `admin` vía `UnauthorizedError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 403
+            message: No autorizado
+            data: null
+
+    ServerError:
+      description: Error inesperado en el servidor.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 500
+            message: Server Error
+            data: null
