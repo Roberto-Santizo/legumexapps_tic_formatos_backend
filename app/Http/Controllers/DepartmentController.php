@@ -46,7 +46,7 @@ class DepartmentController extends Controller
         try {
             $department = Department::find($id);
 
-            return ResponseHandler::success($department, 'Marca Obtenida Correctamente', 200);
+            return ResponseHandler::success($department, 'Departamento Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
