@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Department\DepartmentRequest;
 use App\Models\Department;
-use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
 {
@@ -25,14 +26,12 @@ class DepartmentController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(DepartmentRequest $request)
     {
         try {
-            $data = $request->validate(['name' => 'required']);
+            $department = Department::create($request->validated());
 
-            Department::create($data);
-            
-            return ResponseHandler::success($data, 'Departamento Creado Correctamente', 201);
+            return ResponseHandler::success($department, 'Departamento Creado Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -44,9 +43,9 @@ class DepartmentController extends Controller
     public function show(string $id)
     {
         try {
-            $department = Department::find($id);
+            $department = $this->findDepartmentOrFail($id);
 
-            return ResponseHandler::success($department, 'Marca Obtenida Correctamente', 200);
+            return ResponseHandler::success($department, 'Departamento Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -55,17 +54,30 @@ class DepartmentController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(DepartmentRequest $request, string $id)
     {
         try {
-            $data = $request->validate(['name' => 'required']);
-            $department = Department::find($id);
+            $department = $this->findDepartmentOrFail($id);
 
-            $department->update($data);
+            $department->update($request->validated());
 
             return ResponseHandler::success($department, 'Departamento Actualizado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
+    }
+
+    /**
+     * @throws NotFoundError si el departamento no existe.
+     */
+    private function findDepartmentOrFail(string $id): Department
+    {
+        $department = Department::find($id);
+
+        if (! $department) {
+            throw new NotFoundError('Departamento no encontrado');
+        }
+
+        return $department;
     }
 }

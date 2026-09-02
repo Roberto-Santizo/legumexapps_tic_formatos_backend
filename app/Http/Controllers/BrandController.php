@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Brand\BrandRequest;
 use App\Models\Brand;
-use Illuminate\Http\Request;
 
 class BrandController extends Controller
 {
@@ -13,10 +14,10 @@ class BrandController extends Controller
      */
     public function index()
     {
-         try {
+        try {
             $brands = Brand::all();
-            
-            return ResponseHandler::success($brands, 'Marca Obtenidas Correctamente', 200);
+
+            return ResponseHandler::success($brands, 'Marcas Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -25,14 +26,12 @@ class BrandController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(BrandRequest $request)
     {
         try {
-            $data = $request->validate(['name' => 'required']);
+            $brand = Brand::create($request->validated());
 
-            Brand::create($data);
-            
-            return ResponseHandler::success($data, 'Marca Creada Correctamente', 201);
+            return ResponseHandler::success($brand, 'Marca Creada Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -44,7 +43,7 @@ class BrandController extends Controller
     public function show(string $id)
     {
         try {
-            $brand = Brand::find($id);
+            $brand = $this->findBrandOrFail($id);
 
             return ResponseHandler::success($brand, 'Marca Obtenida Correctamente', 200);
         } catch (\Throwable $th) {
@@ -55,17 +54,30 @@ class BrandController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(BrandRequest $request, string $id)
     {
         try {
-            $data = $request->validate(['name' => 'required']);
-            $brand = Brand::find($id);
+            $brand = $this->findBrandOrFail($id);
 
-            $brand->update($data);
+            $brand->update($request->validated());
 
             return ResponseHandler::success($brand, 'Marca Actualizada Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
+    }
+
+    /**
+     * @throws NotFoundError si la marca no existe.
+     */
+    private function findBrandOrFail(string $id): Brand
+    {
+        $brand = Brand::find($id);
+
+        if (! $brand) {
+            throw new NotFoundError('Marca no encontrada');
+        }
+
+        return $brand;
     }
 }

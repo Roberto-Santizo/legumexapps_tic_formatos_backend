@@ -55,6 +55,17 @@ tags:
       Administración de usuarios. **Todas las operaciones de creación, listado y
       edición están restringidas al rol `admin`** mediante los middlewares
       `jwt.auth` + `admin`.
+  - name: Marcas
+    description: |
+      Catálogo de marcas (`brands`). **Todas las rutas están protegidas por el
+      middleware `jwt.auth`**: exigen la cabecera `Authorization: Bearer <token>`.
+      No requieren un rol específico, basta con un token válido.
+  - name: Departamentos
+    description: |
+      Catálogo de departamentos (`departments`). **Todas las rutas están protegidas
+      por el middleware `jwt.auth`**: exigen la cabecera
+      `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
+      token válido.
 
 paths:
 
@@ -231,6 +242,382 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /brands:
+    get:
+      tags: [Marcas]
+      summary: Listar marcas
+      description: |
+        Devuelve todas las marcas registradas.
+
+        Ruta: `GET /api/brands` — protegida por el middleware `jwt.auth`.
+      operationId: listBrands
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Marcas obtenidas correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Marcas Obtenidas Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Brand'
+              example:
+                statusCode: 200
+                message: Marcas Obtenidas Correctamente
+                data:
+                  - id: 1
+                    name: Legumex
+                    created_at: '2026-09-01T22:16:01.000000Z'
+                    updated_at: '2026-09-01T22:16:01.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Marcas]
+      summary: Crear una marca
+      description: |
+        Crea una marca nueva y devuelve el registro completo.
+
+        Ruta: `POST /api/brands` — protegida por el middleware `jwt.auth`.
+      operationId: createBrand
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandRequest'
+            examples:
+              default:
+                summary: Marca nueva
+                value:
+                  name: Legumex
+      responses:
+        '201':
+          description: Marca creada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Marca Creada Correctamente
+                      data:
+                        $ref: '#/components/schemas/Brand'
+              example:
+                statusCode: 201
+                message: Marca Creada Correctamente
+                data:
+                  id: 1
+                  name: Legumex
+                  created_at: '2026-09-01T22:16:01.000000Z'
+                  updated_at: '2026-09-01T22:16:01.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/NameRequiredError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /brands/{id}:
+    get:
+      tags: [Marcas]
+      summary: Obtener una marca
+      description: |
+        Devuelve la marca indicada.
+
+        Ruta: `GET /api/brands/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showBrand
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Marca obtenida correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Marca Obtenida Correctamente
+                      data:
+                        $ref: '#/components/schemas/Brand'
+              example:
+                statusCode: 200
+                message: Marca Obtenida Correctamente
+                data:
+                  id: 1
+                  name: Legumex
+                  created_at: '2026-09-01T22:16:01.000000Z'
+                  updated_at: '2026-09-01T22:16:01.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/BrandNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Marcas]
+      summary: Actualizar una marca
+      description: |
+        Actualiza el nombre de la marca indicada y devuelve el registro completo.
+
+        Ruta: `PUT /api/brands/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateBrand
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandRequest'
+            examples:
+              default:
+                summary: Nuevo nombre
+                value:
+                  name: Legumex Premium
+      responses:
+        '200':
+          description: Marca actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Marca Actualizada Correctamente
+                      data:
+                        $ref: '#/components/schemas/Brand'
+              example:
+                statusCode: 200
+                message: Marca Actualizada Correctamente
+                data:
+                  id: 1
+                  name: Legumex Premium
+                  created_at: '2026-09-01T22:16:01.000000Z'
+                  updated_at: '2026-09-02T14:30:00.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/BrandNotFound'
+        '422':
+          $ref: '#/components/responses/NameRequiredError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /departments:
+    get:
+      tags: [Departamentos]
+      summary: Listar departamentos
+      description: |
+        Devuelve todos los departamentos registrados.
+
+        Ruta: `GET /api/departments` — protegida por el middleware `jwt.auth`.
+      operationId: listDepartments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Departamentos obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Departamentos Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Department'
+              example:
+                statusCode: 200
+                message: Departamentos Obtenidos Correctamente
+                data:
+                  - id: 1
+                    name: Tecnología de la Información
+                    created_at: '2026-09-02T14:15:07.000000Z'
+                    updated_at: '2026-09-02T14:15:07.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Departamentos]
+      summary: Crear un departamento
+      description: |
+        Crea un departamento nuevo y devuelve el registro completo.
+
+        Ruta: `POST /api/departments` — protegida por el middleware `jwt.auth`.
+      operationId: createDepartment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+            examples:
+              default:
+                summary: Departamento nuevo
+                value:
+                  name: Tecnología de la Información
+      responses:
+        '201':
+          description: Departamento creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Departamento Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Department'
+              example:
+                statusCode: 201
+                message: Departamento Creado Correctamente
+                data:
+                  id: 1
+                  name: Tecnología de la Información
+                  created_at: '2026-09-02T14:15:07.000000Z'
+                  updated_at: '2026-09-02T14:15:07.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/NameRequiredError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /departments/{id}:
+    get:
+      tags: [Departamentos]
+      summary: Obtener un departamento
+      description: |
+        Devuelve el departamento indicado.
+
+        Ruta: `GET /api/departments/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showDepartment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Departamento obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Departamento Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/Department'
+              example:
+                statusCode: 200
+                message: Departamento Obtenido Correctamente
+                data:
+                  id: 1
+                  name: Tecnología de la Información
+                  created_at: '2026-09-02T14:15:07.000000Z'
+                  updated_at: '2026-09-02T14:15:07.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DepartmentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Departamentos]
+      summary: Actualizar un departamento
+      description: |
+        Actualiza el nombre del departamento indicado y devuelve el registro completo.
+
+        Ruta: `PUT /api/departments/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateDepartment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+            examples:
+              default:
+                summary: Nuevo nombre
+                value:
+                  name: Tecnología
+      responses:
+        '200':
+          description: Departamento actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Departamento Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Department'
+              example:
+                statusCode: 200
+                message: Departamento Actualizado Correctamente
+                data:
+                  id: 1
+                  name: Tecnología
+                  created_at: '2026-09-02T14:15:07.000000Z'
+                  updated_at: '2026-09-02T15:00:00.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DepartmentNotFound'
+        '422':
+          $ref: '#/components/responses/NameRequiredError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
 
   securitySchemes:
@@ -328,6 +715,68 @@ components:
           description: JWT firmado. Expira según `JWT_TTL` (60 minutos por defecto).
           example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0L2FwaS9sb2dpbiJ9.4Q6bR0m1kZ2v8pXsN3tYcE7fJ9wA1dLhV5uG0oKq
 
+    Brand:
+      type: object
+      description: Marca almacenada en la tabla `brands`.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental de la marca.
+          example: 1
+        name:
+          type: string
+          description: Nombre de la marca. Único campo asignable en masa (`#[Fillable(['name'])]`).
+          example: Legumex
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-01T22:16:01.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-01T22:16:01.000000Z'
+
+    BrandRequest:
+      type: object
+      description: Cuerpo aceptado por `POST /brands` y `PUT /brands/{id}`.
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Nombre de la marca. Obligatorio (regla `required`).
+          example: Legumex
+
+    Department:
+      type: object
+      description: Departamento almacenado en la tabla `departments`.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del departamento.
+          example: 1
+        name:
+          type: string
+          description: Nombre del departamento. Único campo asignable en masa (`#[Fillable(['name'])]`).
+          example: Tecnología de la Información
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T14:15:07.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T14:15:07.000000Z'
+
+    DepartmentRequest:
+      type: object
+      description: Cuerpo aceptado por `POST /departments` y `PUT /departments/{id}`.
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Nombre del departamento. Obligatorio (regla `required`).
+          example: Tecnología de la Información
+
     SuccessResponse:
       type: object
       description: Envoltura estándar de respuesta exitosa (`ResponseHandler::success`).
@@ -375,6 +824,17 @@ components:
             username: ['El campo de usuario es obligatorio.']
             password: ['El campo de contraseña es obligatorio.']
 
+  parameters:
+
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      description: Identificador del recurso.
+      schema:
+        type: integer
+        example: 1
+
   responses:
 
     ValidationError:
@@ -383,6 +843,49 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationErrorResponse'
+
+    NameRequiredError:
+      description: |
+        El campo `name` no pasó la validación de `BrandRequest` / `DepartmentRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            faltante:
+              summary: No se envió name
+              value:
+                message: El campo de nombre es obligatorio.
+                errors:
+                  name: ['El campo de nombre es obligatorio.']
+            demasiadoLargo:
+              summary: name supera los 255 caracteres
+              value:
+                message: El nombre no puede tener más de 255 caracteres.
+                errors:
+                  name: ['El nombre no puede tener más de 255 caracteres.']
+
+    BrandNotFound:
+      description: No existe una marca con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Marca no encontrada
+            data: null
+
+    DepartmentNotFound:
+      description: No existe un departamento con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Departamento no encontrado
+            data: null
 
     Unauthenticated:
       description: Token ausente, inválido o expirado.
