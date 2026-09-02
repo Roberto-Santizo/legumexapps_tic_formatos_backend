@@ -21,6 +21,13 @@ Route::prefix('api/documentation')->group(function () {
 
         abort_unless(file_exists($spec), 404, 'No se encontró el archivo openapi.yaml.');
 
-        return response()->file($spec, ['Content-Type' => 'application/yaml; charset=UTF-8']);
+        // Sin no-store el navegador aplica caché heurística (response()->file()
+        // manda `Cache-Control: public` sin max-age) y Swagger UI sigue
+        // mostrando un spec viejo tras editar el yaml.
+        return response()->file($spec, [
+            'Content-Type' => 'application/yaml; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+            'Pragma' => 'no-cache',
+        ]);
     })->name('api-docs.spec');
 });
