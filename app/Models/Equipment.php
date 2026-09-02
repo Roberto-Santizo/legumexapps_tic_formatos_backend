@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable(['name','brand_id', 'original', 'is_used', 'model', 'serie', 'registerdBy', 'type'])]
 class Equipment extends Model
 {
+    protected $table = 'equipments';
+
     public function brand(){
         return $this->belongsTo(Brand::class);
     }
