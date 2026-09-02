@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\CaracteristicController;
-use App\Http\Controllers\EquipmentController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/caracteristics', [CaracteristicController::class, 'store'])->middleware(['jwt.auth']);

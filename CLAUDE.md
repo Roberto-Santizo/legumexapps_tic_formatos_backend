@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -131,3 +135,46 @@ Before relying on a package's API, confirm its installed version:
 - After the feature tests pass, ask the user to run the complete suite with `php artisan test --compact`.
 
 </laravel-boost-guidelines>
+
+# Proyecto: Legumexapps TIC Formatos (backend)
+
+API REST en Laravel 13 / PHP 8.5 con autenticación JWT (`tymon/jwt-auth`) y PostgreSQL. Es sólo backend: el único frontend es `welcome.blade.php` y el Swagger UI. Mensajes de API, comentarios y documentación van en español.
+
+## Comandos
+
+```bash
+composer setup                      # install + .env + key + migrate + npm build
+composer dev                        # php artisan dev (server, queue, logs, vite)
+php artisan test --compact          # suite completa
+vendor/bin/pest tests/Feature/BrandTest.php
+vendor/bin/pest --filter='crea una marca'
+vendor/bin/pint --dirty --format agent   # obligatorio tras tocar PHP
+docker compose up -d                # app php-fpm + nginx + queue + scheduler + postgres
+```
+
+Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente.
+
+## Arquitectura
+
+**Rutas.** `routes/api.php` sólo hace `require` de un archivo por recurso (`auth.php`, `brands.php`, `departments.php`, `employees.php`, `equipments.php`, `caracteristics.php`). El prefijo `/api` lo añade `bootstrap/app.php`; no lo repitas en los archivos de rutas. Al añadir un recurso, crea su archivo y encadénalo desde `api.php`.
+
+**Middleware.** `jwt.auth` viene de tymon; los alias `admin` y `administrate_agricola` se registran en `bootstrap/app.php` y lanzan `UnauthorizedError`. Nota: las rutas de `employees.php` hoy no llevan `jwt.auth` (el resto sí).
+
+**Respuestas y errores.** Todo pasa por `App\Helpers\ResponseHandler`, que envuelve en `{statusCode, message, data}`. Los errores de dominio son subclases de `App\Errors\ApiException` (`NotFoundError`, `BadRequestError`, `UnauthorizedError`, `NotAcceptable`) con su `getStatusCode()`; `bootstrap/app.php` las renderiza globalmente, pero los controllers además envuelven en `try/catch` y devuelven `ResponseHandler::error($th)`. Sigue ese patrón; no devuelvas `response()->json()` a pelo.
+
+**Controllers.** Sólo `index/store/show/update` (no hay destroy). Buscan con `Model::find()` y lanzan `NotFoundError` desde un helper privado `find<X>OrFail()` (ver `BrandController`). `BrandController`/`DepartmentController` son el patrón de referencia: FormRequest en `app/Http/Requests/<Recurso>/` con `messages()` en español. `EquipmentController` y `CaracteristicController` ya lo siguen; `EmployeeController` todavía valida inline con `$request->validate()`. Para código nuevo usa FormRequest.
+
+**Servicios.** Sólo Auth tiene capa de servicio: `AuthServiceInterface` → `AuthService`, enlazados en `App\Providers\Auth\AuthProvider` e inyectados como parámetro del método del controller. El resto de recursos son controller + modelo directo.
+
+**Modelos.** Usan el atributo de Laravel 13 `#[Fillable([...])]` (y `#[Hidden]` en `User`), no las propiedades `$fillable`/`$hidden`. `User` implementa `JWTSubject` y mete `id/name/username/role` en los claims.
+
+## Trampas conocidas
+
+- El enum `EquipmentType` vive en `app/Enums/EquipmentType.php` (antes `EquipmentEnum.php`, que rompía el autoload PSR-4). `EquipmentRequest` lo valida con `Rule::enum()`.
+- La tabla de `Equipment` es `equipments` y la columna del usuario que registra es `registerdBy` (así está en la migración y en el modelo).
+- El spec OpenAPI se mantiene a mano en `resources/api-docs/openapi.yaml` y se sirve en `/api/documentation`. Actualízalo al cambiar rutas, payloads o mensajes.
+- `InitialUserSeeder` crea el admin desde `config('app.initial_admin')` (`ADMIN_*` en `.env`) y es idempotente: no pisa contraseñas ya cambiadas.
+
+## Docker y despliegue
+
+`docker/php/Dockerfile` tiene dos targets finales: `runtime` (php-fpm, el que usa `docker-compose.yml` junto a nginx y el servicio `db`) y `standalone` (all-in-one con postgres y nginx dentro, publicado como `:latest`). Sólo el contenedor php-fpm migra y cachea; queue y scheduler esperan a `/run/app-ready`. Push a `main` dispara `.github/workflows/docker-publish.yml`, que autoincrementa el tag `v0.0.X` y publica ambas imágenes en Docker Hub.

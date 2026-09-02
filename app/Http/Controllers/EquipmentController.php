@@ -2,24 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Equipment\EquipmentRequest;
 use App\Models\Equipment;
-use Illuminate\Http\Request;
 
 class EquipmentController extends Controller
 {
+    /**
+     * Display a listing of the resource.
+     */
     public function index()
     {
         try {
-            $equipments = Equipment::all();
+            $equipments = Equipment::with(['brand', 'user'])->get();
 
             $data = $equipments->map(function ($equipment) {
-                return[
+                return [
                     'id' => $equipment->id,
                     'name' => $equipment->name,
-                    'brand'=> $equipment->brand->name,
-                    'registeredBy'=> $equipment->user->name,
-                    ];
+                    'brand' => $equipment->brand->name,
+                    'registeredBy' => $equipment->user->name,
+                ];
             });
 
             return ResponseHandler::success($data, 'Equipos Obtenidos Correctamente', 200);
@@ -28,32 +32,30 @@ class EquipmentController extends Controller
         }
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(EquipmentRequest $request)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'brand_id' => ['required', 'exists:brands,id'],
-                'model' => 'required',
-                'serie'=> 'required',
-                'original'=> 'required',
-                'is_used'=> 'required',
-                'type'=> 'required'
+            $equipment = Equipment::create([
+                ...$request->validated(),
+                'registerdBy' => auth()->user()->id,
             ]);
 
-            $data['registerdBy'] = auth()->user()->id;
-
-            Equipment::create($data);
-            
-            return ResponseHandler::success($data, 'Equipo Creado Correctamente', 201);
+            return ResponseHandler::success($equipment, 'Equipo Creado Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
+
+    /**
+     * Display the specified resource.
+     */
     public function show(string $id)
     {
         try {
-            $equipment = Equipment::find($id);
+            $equipment = $this->findEquipmentOrFail($id);
 
             return ResponseHandler::success($equipment, 'Equipo Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
@@ -61,24 +63,15 @@ class EquipmentController extends Controller
         }
     }
 
-    public function update(Request $request, string $id)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(EquipmentRequest $request, string $id)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'brand_id' => ['required', 'exists:brands,id'], 
-                'model' => 'required',
-                'serie'=> 'required',
-                'original'=> 'required',
-                'is_used'=> 'required',
-                'type'=> 'required'
-            ]);
+            $equipment = $this->findEquipmentOrFail($id);
 
-            $data['registerdBy'] = auth()->user()->id;
-
-            $equipment = Equipment::find($id);
-
-            $equipment->update($data);
+            $equipment->update($request->validated());
 
             return ResponseHandler::success($equipment, 'Equipo Actualizado Correctamente', 200);
         } catch (\Throwable $th) {
@@ -86,4 +79,17 @@ class EquipmentController extends Controller
         }
     }
 
+    /**
+     * @throws NotFoundError si el equipo no existe.
+     */
+    private function findEquipmentOrFail(string $id): Equipment
+    {
+        $equipment = Equipment::find($id);
+
+        if (! $equipment) {
+            throw new NotFoundError('Equipo no encontrado');
+        }
+
+        return $equipment;
+    }
 }

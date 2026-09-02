@@ -66,6 +66,19 @@ tags:
       por el middleware `jwt.auth`**: exigen la cabecera
       `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
       token válido.
+  - name: Equipos
+    description: |
+      Inventario de equipos (`equipments`). **Todas las rutas están protegidas por
+      el middleware `jwt.auth`**: exigen la cabecera
+      `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
+      token válido. El usuario autenticado queda registrado en la columna
+      `registerdBy`.
+  - name: Características
+    description: |
+      Características asociadas a un equipo (`caracteristics`). **Todas las rutas
+      están protegidas por el middleware `jwt.auth`**: exigen la cabecera
+      `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
+      token válido.
 
 paths:
 
@@ -618,6 +631,451 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /equipments:
+    get:
+      tags: [Equipos]
+      summary: Listar equipos
+      description: |
+        Devuelve todos los equipos registrados en una **vista reducida**: sólo el
+        `id`, el `name`, el nombre de la marca y el nombre del usuario que lo
+        registró. Para el registro completo usa `GET /api/equipments/{id}`.
+
+        Ruta: `GET /api/equipments` — protegida por el middleware `jwt.auth`.
+      operationId: listEquipments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Equipos obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipos Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EquipmentListItem'
+              example:
+                statusCode: 200
+                message: Equipos Obtenidos Correctamente
+                data:
+                  - id: 1
+                    name: Laptop Dell Latitude
+                    brand: Dell
+                    registeredBy: Roberto Santizo
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Equipos]
+      summary: Crear un equipo
+      description: |
+        Crea un equipo nuevo y devuelve el registro completo. La columna
+        `registerdBy` se asigna automáticamente con el `id` del usuario del token;
+        **no se acepta en el cuerpo de la petición**.
+
+        Ruta: `POST /api/equipments` — protegida por el middleware `jwt.auth`.
+      operationId: createEquipment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentRequest'
+            examples:
+              default:
+                summary: Equipo nuevo
+                value:
+                  name: Laptop Dell Latitude
+                  model: Latitude 5440
+                  brand_id: 1
+                  serie: 5CD1234XYZ
+                  original: true
+                  is_used: false
+                  type: laptop
+      responses:
+        '201':
+          description: Equipo creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Equipo Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Equipment'
+              example:
+                statusCode: 201
+                message: Equipo Creado Correctamente
+                data:
+                  id: 1
+                  name: Laptop Dell Latitude
+                  model: Latitude 5440
+                  brand_id: 1
+                  serie: 5CD1234XYZ
+                  original: true
+                  is_used: false
+                  type: laptop
+                  registerdBy: 1
+                  created_at: '2026-09-02T17:57:39.000000Z'
+                  updated_at: '2026-09-02T17:57:39.000000Z'
+                  deleted_at: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/EquipmentValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /equipments/{id}:
+    get:
+      tags: [Equipos]
+      summary: Obtener un equipo
+      description: |
+        Devuelve el registro completo del equipo indicado.
+
+        Ruta: `GET /api/equipments/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showEquipment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Equipo obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipo Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/Equipment'
+              example:
+                statusCode: 200
+                message: Equipo Obtenido Correctamente
+                data:
+                  id: 1
+                  name: Laptop Dell Latitude
+                  model: Latitude 5440
+                  brand_id: 1
+                  serie: 5CD1234XYZ
+                  original: true
+                  is_used: false
+                  type: laptop
+                  registerdBy: 1
+                  created_at: '2026-09-02T17:57:39.000000Z'
+                  updated_at: '2026-09-02T17:57:39.000000Z'
+                  deleted_at: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EquipmentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Equipos]
+      summary: Actualizar un equipo
+      description: |
+        Reemplaza todos los campos del equipo indicado y devuelve el registro
+        actualizado. **Es una actualización completa**: el cuerpo exige los mismos
+        campos obligatorios que la creación.
+
+        Ruta: `PUT /api/equipments/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateEquipment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EquipmentRequest'
+            examples:
+              default:
+                summary: Equipo actualizado
+                value:
+                  name: Laptop Dell Latitude 5440
+                  model: Latitude 5440
+                  brand_id: 1
+                  serie: 5CD1234XYZ
+                  original: true
+                  is_used: true
+                  type: laptop
+      responses:
+        '200':
+          description: Equipo actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipo Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Equipment'
+              example:
+                statusCode: 200
+                message: Equipo Actualizado Correctamente
+                data:
+                  id: 1
+                  name: Laptop Dell Latitude 5440
+                  model: Latitude 5440
+                  brand_id: 1
+                  serie: 5CD1234XYZ
+                  original: true
+                  is_used: true
+                  type: laptop
+                  registerdBy: 1
+                  created_at: '2026-09-02T17:57:39.000000Z'
+                  updated_at: '2026-09-02T19:30:00.000000Z'
+                  deleted_at: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EquipmentNotFound'
+        '422':
+          $ref: '#/components/responses/EquipmentValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /caracteristics:
+    get:
+      tags: [Características]
+      summary: Listar características
+      description: |
+        Devuelve las características en una **vista reducida**: sólo el `id`, el
+        `name` y el nombre del equipo al que pertenecen. Para el registro completo
+        usa `GET /api/caracteristics/{id}`.
+
+        Acepta el filtro opcional `equipmentId` para limitar el listado a un equipo.
+
+        Ruta: `GET /api/caracteristics` — protegida por el middleware `jwt.auth`.
+      operationId: listCaracteristics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: equipmentId
+          in: query
+          required: false
+          description: |
+            Filtra las características por equipo. Debe ser el `id` de un equipo
+            existente; en caso contrario la petición falla con `422`.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Características obtenidas correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Características Obtenidas Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CaracteristicListItem'
+              example:
+                statusCode: 200
+                message: Características Obtenidas Correctamente
+                data:
+                  - id: 1
+                    name: Memoria RAM
+                    equipment: Laptop Dell Latitude
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/CaracteristicFilterError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Características]
+      summary: Crear una característica
+      description: |
+        Crea una característica asociada a un equipo y devuelve el registro completo.
+
+        Ruta: `POST /api/caracteristics` — protegida por el middleware `jwt.auth`.
+      operationId: createCaracteristic
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaracteristicRequest'
+            examples:
+              default:
+                summary: Característica nueva
+                value:
+                  name: Memoria RAM
+                  description: 16 GB DDR5
+                  equipment_id: 1
+      responses:
+        '201':
+          description: Característica creada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Características Creadas Correctamente
+                      data:
+                        $ref: '#/components/schemas/Caracteristic'
+              example:
+                statusCode: 201
+                message: Características Creadas Correctamente
+                data:
+                  id: 1
+                  name: Memoria RAM
+                  description: 16 GB DDR5
+                  equipment_id: 1
+                  created_at: '2026-09-02T21:06:51.000000Z'
+                  updated_at: '2026-09-02T21:06:51.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/CaracteristicValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /caracteristics/{id}:
+    get:
+      tags: [Características]
+      summary: Obtener una característica
+      description: |
+        Devuelve el registro completo de la característica indicada.
+
+        Ruta: `GET /api/caracteristics/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showCaracteristic
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Característica obtenida correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Características Obtenidas Correctamente
+                      data:
+                        $ref: '#/components/schemas/Caracteristic'
+              example:
+                statusCode: 200
+                message: Características Obtenidas Correctamente
+                data:
+                  id: 1
+                  name: Memoria RAM
+                  description: 16 GB DDR5
+                  equipment_id: 1
+                  created_at: '2026-09-02T21:06:51.000000Z'
+                  updated_at: '2026-09-02T21:06:51.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/CaracteristicNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Características]
+      summary: Actualizar una característica
+      description: |
+        Reemplaza todos los campos de la característica indicada y devuelve el
+        registro actualizado. **Es una actualización completa**: el cuerpo exige los
+        mismos campos obligatorios que la creación.
+
+        Ruta: `PUT /api/caracteristics/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateCaracteristic
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaracteristicRequest'
+            examples:
+              default:
+                summary: Característica actualizada
+                value:
+                  name: Memoria RAM
+                  description: 32 GB DDR5
+                  equipment_id: 1
+      responses:
+        '200':
+          description: Característica actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Características Actualizadas Correctamente
+                      data:
+                        $ref: '#/components/schemas/Caracteristic'
+              example:
+                statusCode: 200
+                message: Características Actualizadas Correctamente
+                data:
+                  id: 1
+                  name: Memoria RAM
+                  description: 32 GB DDR5
+                  equipment_id: 1
+                  created_at: '2026-09-02T21:06:51.000000Z'
+                  updated_at: '2026-09-02T22:10:00.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/CaracteristicNotFound'
+        '422':
+          $ref: '#/components/responses/CaracteristicValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
 
   securitySchemes:
@@ -777,6 +1235,219 @@ components:
           description: Nombre del departamento. Obligatorio (regla `required`).
           example: Tecnología de la Información
 
+    EquipmentType:
+      type: string
+      description: |
+        Tipo de equipo. Corresponde al enum `App\Enums\EquipmentType`
+        (declarado en `app/Enums/EquipmentType.php`).
+      enum:
+        - mouse
+        - keyboard
+        - charger
+        - headset
+        - webcam
+        - monitor
+        - laptop
+        - desktop
+        - printer
+        - cable
+        - adapter
+        - other
+      example: laptop
+
+    Equipment:
+      type: object
+      description: |
+        Equipo almacenado en la tabla `equipments`. Es la forma que devuelven
+        `POST /equipments`, `GET /equipments/{id}` y `PUT /equipments/{id}`.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del equipo.
+          example: 1
+        name:
+          type: string
+          description: Nombre del equipo.
+          example: Laptop Dell Latitude
+        model:
+          type: string
+          description: Modelo del equipo.
+          example: Latitude 5440
+        brand_id:
+          type: integer
+          description: Marca a la que pertenece (`brands.id`).
+          example: 1
+        serie:
+          type: string
+          description: Número de serie del equipo.
+          example: 5CD1234XYZ
+        original:
+          type: boolean
+          description: Indica si el equipo es original.
+          example: true
+        is_used:
+          type: boolean
+          description: Indica si el equipo se entregó usado.
+          example: false
+        type:
+          $ref: '#/components/schemas/EquipmentType'
+        registerdBy:
+          type: integer
+          description: |
+            Usuario que registró el equipo (`users.id`). Lo asigna el controlador
+            con el usuario del token; el nombre de la columna lleva la errata
+            original de la migración.
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T17:57:39.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T17:57:39.000000Z'
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Columna de borrado lógico de la tabla `equipments`.
+          example: null
+
+    EquipmentListItem:
+      type: object
+      description: |
+        Vista reducida que devuelve `GET /equipments`: sustituye `brand_id` y
+        `registerdBy` por los nombres relacionados.
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Laptop Dell Latitude
+        brand:
+          type: string
+          description: Nombre de la marca relacionada.
+          example: Dell
+        registeredBy:
+          type: string
+          description: Nombre del usuario que registró el equipo.
+          example: Roberto Santizo
+
+    EquipmentRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `POST /equipments` y `PUT /equipments/{id}`
+        (`App\Http\Requests\Equipment\EquipmentRequest`). Todos los campos son
+        obligatorios. `registerdBy` no se acepta: lo asigna el controlador.
+      required: [name, model, brand_id, serie, original, is_used, type]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nombre del equipo. Reglas `required|string|max:255`.
+          example: Laptop Dell Latitude
+        model:
+          type: string
+          maxLength: 255
+          description: Modelo del equipo. Reglas `required|string|max:255`.
+          example: Latitude 5440
+        brand_id:
+          type: integer
+          description: Marca existente. Reglas `required|integer|exists:brands,id`.
+          example: 1
+        serie:
+          type: string
+          maxLength: 255
+          description: Número de serie. Reglas `required|string|max:255`.
+          example: 5CD1234XYZ
+        original:
+          type: boolean
+          description: Reglas `required|boolean`.
+          example: true
+        is_used:
+          type: boolean
+          description: Reglas `required|boolean`.
+          example: false
+        type:
+          allOf:
+            - $ref: '#/components/schemas/EquipmentType'
+          description: |
+            Tipo de equipo. Reglas `required|string` más `Rule::enum(EquipmentType::class)`:
+            sólo se aceptan los valores del enum.
+
+    Caracteristic:
+      type: object
+      description: |
+        Característica almacenada en la tabla `caracteristics`. Es la forma que
+        devuelven `POST /caracteristics`, `GET /caracteristics/{id}` y
+        `PUT /caracteristics/{id}`.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental de la característica.
+          example: 1
+        name:
+          type: string
+          description: Nombre de la característica.
+          example: Memoria RAM
+        description:
+          type: string
+          description: Descripción de la característica.
+          example: 16 GB DDR5
+        equipment_id:
+          type: integer
+          description: Equipo al que pertenece (`equipments.id`).
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T21:06:51.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T21:06:51.000000Z'
+
+    CaracteristicListItem:
+      type: object
+      description: |
+        Vista reducida que devuelve `GET /caracteristics`: sustituye `equipment_id`
+        por el nombre del equipo y omite la descripción.
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Memoria RAM
+        equipment:
+          type: string
+          description: Nombre del equipo relacionado.
+          example: Laptop Dell Latitude
+
+    CaracteristicRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `POST /caracteristics` y `PUT /caracteristics/{id}`
+        (`App\Http\Requests\Caracteristic\CaracteristicRequest`). Todos los campos
+        son obligatorios.
+      required: [name, description, equipment_id]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nombre de la característica. Reglas `required|string|max:255`.
+          example: Memoria RAM
+        description:
+          type: string
+          maxLength: 255
+          description: Descripción de la característica. Reglas `required|string|max:255`.
+          example: 16 GB DDR5
+        equipment_id:
+          type: integer
+          description: Equipo existente. Reglas `required|integer|exists:equipments,id`.
+          example: 1
+
     SuccessResponse:
       type: object
       description: Envoltura estándar de respuesta exitosa (`ResponseHandler::success`).
@@ -886,6 +1557,113 @@ components:
             statusCode: 404
             message: Departamento no encontrado
             data: null
+
+    EquipmentNotFound:
+      description: No existe un equipo con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Equipo no encontrado
+            data: null
+
+    CaracteristicNotFound:
+      description: No existe una característica con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Característica no encontrada
+            data: null
+
+    EquipmentValidationError:
+      description: |
+        El cuerpo no pasó la validación de `EquipmentRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: El campo de nombre es obligatorio.
+                errors:
+                  name: ['El campo de nombre es obligatorio.']
+                  model: ['El campo de modelo es obligatorio.']
+                  brand_id: ['El campo de marca es obligatorio.']
+                  serie: ['El campo de serie es obligatorio.']
+                  original: ['El campo de original es obligatorio.']
+                  is_used: ['El campo de usado es obligatorio.']
+                  type: ['El campo de tipo es obligatorio.']
+            marcaInexistente:
+              summary: brand_id no corresponde a ninguna marca
+              value:
+                message: La marca seleccionada no existe.
+                errors:
+                  brand_id: ['La marca seleccionada no existe.']
+            tipoInvalido:
+              summary: type fuera del enum EquipmentType
+              value:
+                message: El tipo de equipo seleccionado no es válido.
+                errors:
+                  type: ['El tipo de equipo seleccionado no es válido.']
+            booleanoInvalido:
+              summary: original o is_used no son booleanos
+              value:
+                message: El campo de original debe ser verdadero o falso.
+                errors:
+                  original: ['El campo de original debe ser verdadero o falso.']
+                  is_used: ['El campo de usado debe ser verdadero o falso.']
+
+    CaracteristicValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CaracteristicRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: El campo de nombre es obligatorio.
+                errors:
+                  name: ['El campo de nombre es obligatorio.']
+                  description: ['El campo de descripción es obligatorio.']
+                  equipment_id: ['El campo de equipo es obligatorio.']
+            equipoInexistente:
+              summary: equipment_id no corresponde a ningún equipo
+              value:
+                message: El equipo seleccionado no existe.
+                errors:
+                  equipment_id: ['El equipo seleccionado no existe.']
+
+    CaracteristicFilterError:
+      description: |
+        El filtro `equipmentId` no pasó la validación de
+        `CaracteristicIndexRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            equipoInexistente:
+              summary: equipmentId no corresponde a ningún equipo
+              value:
+                message: El equipo seleccionado no existe.
+                errors:
+                  equipmentId: ['El equipo seleccionado no existe.']
+            noNumerico:
+              summary: equipmentId no es un número
+              value:
+                message: El equipo debe ser un identificador numérico.
+                errors:
+                  equipmentId: ['El equipo debe ser un identificador numérico.']
 
     Unauthenticated:
       description: Token ausente, inválido o expirado.

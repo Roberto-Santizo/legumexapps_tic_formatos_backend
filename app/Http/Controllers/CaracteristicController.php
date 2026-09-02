@@ -2,29 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Caracteristic\CaracteristicIndexRequest;
+use App\Http\Requests\Caracteristic\CaracteristicRequest;
 use App\Models\Caracteristic;
-use Illuminate\Http\Request;
 
 class CaracteristicController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(CaracteristicIndexRequest $request)
     {
         try {
-            $query = Caracteristic::query();
+            $query = Caracteristic::with('equipment');
 
-            if($request->query('equipmentId')){
-                $query->where('equipment_id', $request->query('equipmentId'));
+            if ($request->validated('equipmentId')) {
+                $query->where('equipment_id', $request->validated('equipmentId'));
             }
 
             $caracteristics = $query->get();
 
             $data = $caracteristics->map(function ($caracteristic) {
-                return[
+                return [
                     'id' => $caracteristic->id,
                     'name' => $caracteristic->name,
-                    'equipment'=> $caracteristic->equipment->name,
-                    ];
+                    'equipment' => $caracteristic->equipment->name,
+                ];
             });
 
             return ResponseHandler::success($data, 'Características Obtenidas Correctamente', 200);
@@ -33,28 +38,27 @@ class CaracteristicController extends Controller
         }
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(CaracteristicRequest $request)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'description' => 'required',
-                'equipment_id' => ['required', 'exists:equipments,id'],
-            ]);
+            $caracteristic = Caracteristic::create($request->validated());
 
-            $data['registerdBy'] = auth()->user()->id;
-
-            Caracteristic::create($data);
-            
-            return ResponseHandler::success($data, 'Características Creadas Correctamente', 201);
+            return ResponseHandler::success($caracteristic, 'Características Creadas Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
+
+    /**
+     * Display the specified resource.
+     */
     public function show(string $id)
     {
         try {
-            $caracteristic = Caracteristic::find($id);
+            $caracteristic = $this->findCaracteristicOrFail($id);
 
             return ResponseHandler::success($caracteristic, 'Características Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {
@@ -62,20 +66,15 @@ class CaracteristicController extends Controller
         }
     }
 
-    public function update(Request $request, string $id)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(CaracteristicRequest $request, string $id)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'description' => 'required',
-                'equipment_id' => ['required', 'exists:equipments,id']
-            ]);
+            $caracteristic = $this->findCaracteristicOrFail($id);
 
-            $data['registerdBy'] = auth()->user()->id;
-
-            $caracteristic = Caracteristic::find($id);
-
-            $caracteristic->update($data);
+            $caracteristic->update($request->validated());
 
             return ResponseHandler::success($caracteristic, 'Características Actualizadas Correctamente', 200);
         } catch (\Throwable $th) {
@@ -83,4 +82,17 @@ class CaracteristicController extends Controller
         }
     }
 
+    /**
+     * @throws NotFoundError si la característica no existe.
+     */
+    private function findCaracteristicOrFail(string $id): Caracteristic
+    {
+        $caracteristic = Caracteristic::find($id);
+
+        if (! $caracteristic) {
+            throw new NotFoundError('Característica no encontrada');
+        }
+
+        return $caracteristic;
+    }
 }
