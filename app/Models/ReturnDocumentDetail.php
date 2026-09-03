@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['observations','delivery_document_detail_id'])]
-class ReturnDocument extends Model
+class ReturnDocumentDetail extends Model
 {
     protected $table = 'return_document_details';
 

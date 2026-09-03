@@ -6,6 +6,7 @@ use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Resources\DeliveryDocumentResource;
 use App\Models\DeliveryDocument;
+use App\Services\Storage\ImageStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -16,7 +17,7 @@ class DeliveryDocumentController extends Controller
         try {
             $delivery_documents = DeliveryDocument::with(['employee_id', 'user_id'])->get();
             $data = DeliveryDocumentResource::collection($delivery_documents);
-            
+
             return ResponseHandler::success($data, 'Documentos de Entrega Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
@@ -29,16 +30,20 @@ class DeliveryDocumentController extends Controller
             $data = $request->validate([
                 'location' => 'required',
                 'delivery_date' => 'required',
-                'responsable_signature' => ['required', 'max:2048'],
-                'administrador_signature' => ['required', 'max:2048'],
+                'responsable_signature' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
+                'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
                 'employee_id' => ['required', 'exists:employees,id'],
                 'user_id' => ['required', 'exists:users,id'],
                 'observations' => ['nullable']
             ]);
-
-            $filename = Str::uuid() . '.png';
-            $filename2 = Str::uuid() . '.png';
             
+            $imageServer =  new ImageStorageService();
+            $file = $request->file('responsable_signature');
+            $file2 = $request->file('administrador_signature');
+
+            $filename = $imageServer->store($file);
+            $filename2 = $imageServer->store($file2);
+
             $data['responsable_signature'] = $filename;
             $data['administrador_signature'] = $filename2;
 
@@ -78,7 +83,7 @@ class DeliveryDocumentController extends Controller
                 'employee_id' => ['required', 'exists:employee,id'],
                 'user_id' => ['required', 'exists:user,id'],
                 'observations' => 'nullable|string'
-                ]);
+            ]);
             $delivery_documents = DeliveryDocument::find($id);
 
             $delivery_documents->update($data);

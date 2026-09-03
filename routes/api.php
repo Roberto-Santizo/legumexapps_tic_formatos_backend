@@ -7,3 +7,4 @@ require __DIR__.'/employees.php';
 require __DIR__.'/equipments.php';
 require __DIR__.'/caracteristics.php';
 require __DIR__.'/delivery_documents.php';
+require __DIR__.'/return_documents.php';
