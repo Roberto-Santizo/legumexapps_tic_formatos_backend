@@ -79,6 +79,12 @@ tags:
       están protegidas por el middleware `jwt.auth`**: exigen la cabecera
       `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
       token válido.
+  - name: Empleados
+    description: |
+      Catálogo de empleados (`employees`). **Todas las rutas están protegidas por
+      el middleware `jwt.auth`**: exigen la cabecera
+      `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
+      token válido. Cada empleado pertenece a un departamento (`departments`).
 
 paths:
 
@@ -1076,6 +1082,222 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /employees:
+    get:
+      tags: [Empleados]
+      summary: Listar empleados
+      description: |
+        Devuelve todos los empleados registrados en una **vista reducida**: sólo el
+        `id`, el `code`, el `name` y el nombre del departamento al que pertenecen.
+
+        Ruta: `GET /api/employees` — protegida por el middleware `jwt.auth`.
+      operationId: listEmployees
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Empleados obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Empleados Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EmployeeListItem'
+              example:
+                statusCode: 200
+                message: Empleados Obtenidos Correctamente
+                data:
+                  - id: 1
+                    code: EMP-001
+                    name: Roberto Santizo
+                    department: Tecnología de la Información
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Empleados]
+      summary: Crear un empleado
+      description: |
+        Crea un empleado nuevo.
+
+        A diferencia del resto de recursos, la respuesta **no devuelve el registro
+        creado**: el controlador devuelve los datos validados del cuerpo, por lo que
+        `data` no incluye `id` ni las marcas de tiempo.
+
+        Ruta: `POST /api/employees` — protegida por el middleware `jwt.auth`.
+      operationId: createEmployee
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeRequest'
+            examples:
+              default:
+                summary: Empleado nuevo
+                value:
+                  name: Roberto Santizo
+                  code: EMP-001
+                  department_id: 1
+      responses:
+        '201':
+          description: Empleado creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Empleado Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/EmployeeRequest'
+              example:
+                statusCode: 201
+                message: Empleado Creado Correctamente
+                data:
+                  name: Roberto Santizo
+                  code: EMP-001
+                  department_id: 1
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/EmployeeValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /employees/{id}:
+    get:
+      tags: [Empleados]
+      summary: Obtener un empleado
+      description: |
+        Devuelve el empleado indicado con todos sus campos.
+
+        **Cuidado:** este endpoint no lanza `NotFoundError`. Si el `id` no existe,
+        responde `200` con `data: null` en lugar de `404`.
+
+        Ruta: `GET /api/employees/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: |
+            Empleado obtenido correctamente. `data` es `null` si el `id` no existe.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Empleado Obtenido Correctamente
+                      data:
+                        allOf:
+                          - $ref: '#/components/schemas/Employee'
+                        nullable: true
+              examples:
+                encontrado:
+                  summary: El empleado existe
+                  value:
+                    statusCode: 200
+                    message: Empleado Obtenido Correctamente
+                    data:
+                      id: 1
+                      code: EMP-001
+                      name: Roberto Santizo
+                      department_id: 1
+                      created_at: '2026-09-02T16:00:00.000000Z'
+                      updated_at: '2026-09-02T16:00:00.000000Z'
+                noEncontrado:
+                  summary: El id no corresponde a ningún empleado
+                  value:
+                    statusCode: 200
+                    message: Empleado Obtenido Correctamente
+                    data: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Empleados]
+      summary: Actualizar un empleado
+      description: |
+        Actualiza el empleado indicado y devuelve el registro completo. Los tres
+        campos son obligatorios en cada actualización.
+
+        **Cuidado:** este endpoint tampoco lanza `NotFoundError`. Si el `id` no
+        existe, la actualización se ejecuta sobre un modelo nulo y la respuesta es
+        un `500`, no un `404`.
+
+        Ruta: `PUT /api/employees/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeRequest'
+            examples:
+              default:
+                summary: Nuevos datos del empleado
+                value:
+                  name: Roberto Santizo Lopez
+                  code: EMP-002
+                  department_id: 2
+      responses:
+        '200':
+          description: Empleado actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Empleado Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Employee'
+              example:
+                statusCode: 200
+                message: Empleado Actualizado Correctamente
+                data:
+                  id: 1
+                  code: EMP-002
+                  name: Roberto Santizo Lopez
+                  department_id: 2
+                  created_at: '2026-09-02T16:00:00.000000Z'
+                  updated_at: '2026-09-02T17:30:00.000000Z'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/EmployeeValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
 
   securitySchemes:
@@ -1448,6 +1670,80 @@ components:
           description: Equipo existente. Reglas `required|integer|exists:equipments,id`.
           example: 1
 
+    Employee:
+      type: object
+      description: |
+        Empleado almacenado en la tabla `employees`. Es la forma que devuelven
+        `GET /employees/{id}` y `PUT /employees/{id}`.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del empleado.
+          example: 1
+        code:
+          type: string
+          description: Código interno del empleado.
+          example: EMP-001
+        name:
+          type: string
+          description: Nombre completo del empleado.
+          example: Roberto Santizo
+        department_id:
+          type: integer
+          description: Departamento al que pertenece (`departments.id`).
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T16:00:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-02T16:00:00.000000Z'
+
+    EmployeeListItem:
+      type: object
+      description: |
+        Vista reducida que devuelve `GET /employees`: sustituye `department_id` por
+        el nombre del departamento y omite las marcas de tiempo.
+      properties:
+        id:
+          type: integer
+          example: 1
+        code:
+          type: string
+          example: EMP-001
+        name:
+          type: string
+          example: Roberto Santizo
+        department:
+          type: string
+          description: Nombre del departamento relacionado.
+          example: Tecnología de la Información
+
+    EmployeeRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `POST /employees` y `PUT /employees/{id}`. A diferencia
+        del resto de recursos, `EmployeeController` valida en línea con
+        `$request->validate()` y no usa un FormRequest, por lo que los mensajes de
+        error son los predeterminados de Laravel (en inglés). Todos los campos son
+        obligatorios. También es la forma que devuelve `data` en `POST /employees`.
+      required: [name, code, department_id]
+      properties:
+        name:
+          type: string
+          description: Nombre completo del empleado. Regla `required`.
+          example: Roberto Santizo
+        code:
+          type: string
+          description: Código interno del empleado. Regla `required`. No se valida su unicidad.
+          example: EMP-001
+        department_id:
+          type: integer
+          description: Departamento existente. Reglas `required|exists:departments,id`.
+          example: 1
+
     SuccessResponse:
       type: object
       description: Envoltura estándar de respuesta exitosa (`ResponseHandler::success`).
@@ -1664,6 +1960,31 @@ components:
                 message: El equipo debe ser un identificador numérico.
                 errors:
                   equipmentId: ['El equipo debe ser un identificador numérico.']
+
+    EmployeeValidationError:
+      description: |
+        El cuerpo no pasó la validación en línea de `EmployeeController`. Los
+        mensajes son los predeterminados de Laravel porque este recurso todavía no
+        usa un FormRequest con `messages()` en español.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: The name field is required. (and 2 more errors)
+                errors:
+                  name: ['The name field is required.']
+                  code: ['The code field is required.']
+                  department_id: ['The department id field is required.']
+            departamentoInexistente:
+              summary: department_id no corresponde a ningún departamento
+              value:
+                message: The selected department id is invalid.
+                errors:
+                  department_id: ['The selected department id is invalid.']
 
     Unauthenticated:
       description: Token ausente, inválido o expirado.
