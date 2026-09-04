@@ -85,6 +85,22 @@ tags:
       el middleware `jwt.auth`**: exigen la cabecera
       `Authorization: Bearer <token>`. No requieren un rol específico, basta con un
       token válido. Cada empleado pertenece a un departamento (`departments`).
+  - name: Documentos de Entrega
+    description: |
+      Documentos de entrega de equipo (`delivery_documents`) junto con los equipos
+      que incluyen. **Todas las rutas están protegidas por el middleware
+      `jwt.auth`**: exigen la cabecera `Authorization: Bearer <token>`. No
+      requieren un rol específico, basta con un token válido. El usuario
+      autenticado queda registrado en `user_id` y la fecha de entrega
+      (`delivery_date`) la asigna el servidor: **ninguno de los dos se acepta en el
+      cuerpo de la petición**.
+  - name: Detalles de Documento de Entrega
+    description: |
+      Equipos incluidos en un documento de entrega (`delivery_document_details`).
+      Lo habitual es crearlos junto al documento desde
+      `POST /api/delivery_documents`; estas rutas sirven para consultarlos o para
+      añadir y quitar equipos de un documento ya existente. **Todas están
+      protegidas por el middleware `jwt.auth`**.
 
 paths:
 
@@ -1298,6 +1314,447 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /delivery_documents:
+    get:
+      tags: [Documentos de Entrega]
+      summary: Listar documentos de entrega
+      description: |
+        Devuelve todos los documentos de entrega con el empleado que recibió el
+        equipo, el usuario que registró la entrega y el arreglo `items` con cada
+        equipo entregado.
+
+        Ruta: `GET /api/delivery_documents` — protegida por el middleware `jwt.auth`.
+      operationId: listDeliveryDocuments
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Documentos de entrega obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Documentos de Entrega Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeliveryDocument'
+              example:
+                statusCode: 200
+                message: Documentos de Entrega Obtenidos Correctamente
+                data:
+                  - id: 1
+                    location: Planta Tejar
+                    delivery_date: 04-09-2026 10:09:33 AM
+                    responsable_signature: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+                    administrador_signature: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+                    employee_id: 3
+                    employee_name: Roberto Santizo
+                    employee_department: Tecnología de la Información
+                    user_id: 1
+                    user_name: Administrador
+                    observations: Entrega inicial de equipo
+                    items:
+                      - id: 1
+                        equipment_id: 1
+                        equipment_name: Laptop Dell Latitude
+                        equipment_brand: Dell
+                        equipment_model: Latitude 5440
+                        equipment_serie: 5CD1234XYZ
+                        is_used: Nuevo
+                        original: Original
+                        observations: Se entrega sin cargador
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Documentos de Entrega]
+      summary: Crear un documento de entrega con sus equipos
+      description: |
+        Crea el documento de entrega **y todos sus detalles en una sola petición**,
+        dentro de una transacción: si falla el guardado de algún equipo no se
+        guarda nada.
+
+        El cuerpo se envía como `multipart/form-data` porque incluye las dos firmas
+        como archivo. Los equipos entregados viajan en el campo `items` con la
+        notación de arreglo de formularios:
+
+        ```
+        location=1
+        employee_id=3
+        observations=Entrega inicial de equipo
+        responsable_signature=<archivo>
+        administrador_signature=<archivo>
+        items[0][equipment_id]=1
+        items[0][observations]=Se entrega sin cargador
+        items[1][equipment_id]=2
+        items[1][observations]=Con estuche
+        ```
+
+        Se exige **al menos un item**. `user_id` se toma del token y
+        `delivery_date` de la hora del servidor; **no se aceptan en el cuerpo**.
+        Las firmas se guardan en el disco `public`, dentro de `signatures/`, con un
+        uuid como nombre; en las respuestas de lectura sólo aparece esa ruta
+        relativa.
+
+        La creación **no devuelve el documento**: `data` es `true`. Usa
+        `GET /api/delivery_documents/{id}` para leerlo.
+
+        Ruta: `POST /api/delivery_documents` — protegida por el middleware `jwt.auth`.
+      operationId: createDeliveryDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeliveryDocumentRequest'
+            encoding:
+              responsable_signature:
+                contentType: image/png, image/jpeg
+              administrador_signature:
+                contentType: image/png, image/jpeg
+      responses:
+        '201':
+          description: Documento de entrega creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Documento de Entregas Creado Correctamente
+                      data:
+                        type: boolean
+                        example: true
+              example:
+                statusCode: 201
+                message: Documento de Entregas Creado Correctamente
+                data: true
+        '400':
+          $ref: '#/components/responses/SignatureUploadError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/DeliveryDocumentValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /delivery_documents/{id}:
+    get:
+      tags: [Documentos de Entrega]
+      summary: Obtener un documento de entrega
+      description: |
+        Devuelve el documento de entrega indicado junto con su arreglo `items`.
+
+        Ruta: `GET /api/delivery_documents/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showDeliveryDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Documento de entrega obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Documento de Entrega Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/DeliveryDocument'
+              example:
+                statusCode: 200
+                message: Documento de Entrega Obtenido Correctamente
+                data:
+                  id: 1
+                  location: Planta Tejar
+                  delivery_date: 04-09-2026 10:09:33 AM
+                  responsable_signature: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+                  administrador_signature: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+                  employee_id: 3
+                  employee_name: Roberto Santizo
+                  employee_department: Tecnología de la Información
+                  user_id: 1
+                  user_name: Administrador
+                  observations: Entrega inicial de equipo
+                  items:
+                    - id: 1
+                      equipment_id: 1
+                      equipment_name: Laptop Dell Latitude
+                      equipment_brand: Dell
+                      equipment_model: Latitude 5440
+                      equipment_serie: 5CD1234XYZ
+                      is_used: Nuevo
+                      original: Original
+                      observations: Se entrega sin cargador
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Documentos de Entrega]
+      summary: Eliminar un documento de entrega
+      description: |
+        Elimina el documento indicado. Sus detalles se borran en cascada
+        (`delivery_document_details.delivery_document_id` está definida con
+        `cascadeOnDelete`). El borrado es **definitivo**: la tabla no usa
+        *soft deletes*.
+
+        Ruta: `DELETE /api/delivery_documents/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: deleteDeliveryDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Documento de entrega eliminado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Documento de Entrega  Eliminados Correctamente
+                      data:
+                        type: boolean
+                        example: true
+              example:
+                statusCode: 200
+                message: Documento de Entrega  Eliminados Correctamente
+                data: true
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /delivery_document_details:
+    get:
+      tags: [Detalles de Documento de Entrega]
+      summary: Listar detalles de documentos de entrega
+      description: |
+        Devuelve los equipos entregados con los datos del equipo ya resueltos
+        (marca, modelo, serie y estado). Acepta el filtro opcional
+        `deliveryDocumentId` para limitar el listado a un documento.
+
+        Ruta: `GET /api/delivery_document_details` — protegida por el middleware `jwt.auth`.
+      operationId: listDeliveryDocumentDetails
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deliveryDocumentId
+          in: query
+          required: false
+          description: |
+            Filtra los detalles por documento de entrega. No se valida: si el `id`
+            no corresponde a ningún documento la respuesta es una lista vacía.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detalles obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Documento de Entregas Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeliveryDocumentDetail'
+              example:
+                statusCode: 200
+                message: Detalles de Documento de Entregas Obtenidos Correctamente
+                data:
+                  - id: 1
+                    equipment_id: 1
+                    equipment_name: Laptop Dell Latitude
+                    equipment_brand: Dell
+                    equipment_model: Latitude 5440
+                    equipment_serie: 5CD1234XYZ
+                    is_used: Nuevo
+                    original: Original
+                    observations: Se entrega sin cargador
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Detalles de Documento de Entrega]
+      summary: Agregar un equipo a un documento de entrega
+      description: |
+        Agrega un equipo a un documento de entrega **ya existente**. Para crear el
+        documento con todos sus equipos de una sola vez usa
+        `POST /api/delivery_documents`.
+
+        La respuesta devuelve el cuerpo validado, no el registro creado: no incluye
+        el `id` real ni las marcas de tiempo.
+
+        Ruta: `POST /api/delivery_document_details` — protegida por el middleware `jwt.auth`.
+      operationId: createDeliveryDocumentDetail
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryDocumentDetailRequest'
+            examples:
+              default:
+                summary: Equipo agregado a un documento existente
+                value:
+                  id: 1
+                  delivery_document_id: 1
+                  equipment_id: 2
+                  observations: Con estuche
+      responses:
+        '201':
+          description: Detalle creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Detalles de Documento de Entregas Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/DeliveryDocumentDetailRequest'
+              example:
+                statusCode: 201
+                message: Detalles de Documento de Entregas Creado Correctamente
+                data:
+                  id: 1
+                  delivery_document_id: 1
+                  equipment_id: 2
+                  observations: Con estuche
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/DeliveryDocumentDetailValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /delivery_document_details/{id}:
+    get:
+      tags: [Detalles de Documento de Entrega]
+      summary: Obtener un detalle de documento de entrega
+      description: |
+        Devuelve el equipo entregado indicado, con los datos del equipo resueltos.
+
+        Ruta: `GET /api/delivery_document_details/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showDeliveryDocumentDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Detalle obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Documento de Entrega Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/DeliveryDocumentDetail'
+              example:
+                statusCode: 200
+                message: Detalles de Documento de Entrega Obtenido Correctamente
+                data:
+                  id: 1
+                  equipment_id: 1
+                  equipment_name: Laptop Dell Latitude
+                  equipment_brand: Dell
+                  equipment_model: Latitude 5440
+                  equipment_serie: 5CD1234XYZ
+                  is_used: Nuevo
+                  original: Original
+                  observations: Se entrega sin cargador
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentDetailNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Detalles de Documento de Entrega]
+      summary: Quitar un equipo de un documento de entrega
+      description: |
+        Elimina el detalle indicado. El borrado es **definitivo**: la tabla no usa
+        *soft deletes*. El mensaje de éxito que devuelve hoy la aplicación es el
+        mismo que el de la consulta individual.
+
+        Ruta: `DELETE /api/delivery_document_details/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: deleteDeliveryDocumentDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Detalle eliminado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Documento de Entrega Obtenido Correctamente
+                      data:
+                        type: boolean
+                        example: true
+              example:
+                statusCode: 200
+                message: Detalles de Documento de Entrega Obtenido Correctamente
+                data: true
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentDetailNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
 
   securitySchemes:
@@ -1744,6 +2201,216 @@ components:
           description: Departamento existente. Reglas `required|exists:departments,id`.
           example: 1
 
+    DeliveryDocument:
+      type: object
+      description: |
+        Documento de entrega tal como lo emite `DeliveryDocumentResource`. Es la
+        forma que devuelven `GET /delivery_documents` y
+        `GET /delivery_documents/{id}` (el listado usa el mismo recurso, no una
+        vista reducida). Varios campos vienen ya traducidos y no coinciden con la
+        columna de la tabla.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del documento.
+          example: 1
+        location:
+          type: string
+          description: |
+            Planta, ya traducida: `Planta Tejar` cuando la columna `location` vale
+            `1`, `Planta Parramos` en cualquier otro caso.
+          example: Planta Tejar
+        delivery_date:
+          type: string
+          description: |
+            Fecha y hora de la entrega, formateada por el recurso con
+            `d-m-Y h:m:s A` (no es ISO 8601).
+          example: 04-09-2026 10:09:33 AM
+        responsable_signature:
+          type: string
+          description: |
+            Ruta relativa de la firma del responsable dentro del disco `public`.
+          example: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+        administrador_signature:
+          type: string
+          description: |
+            Ruta relativa de la firma del administrador dentro del disco `public`.
+          example: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+        employee_id:
+          type: integer
+          description: Empleado que recibe el equipo (`employees.id`).
+          example: 3
+        employee_name:
+          type: string
+          description: Nombre del empleado que recibe el equipo.
+          example: Roberto Santizo
+        employee_department:
+          type: string
+          description: Nombre del departamento del empleado (`departments.name`).
+          example: Tecnología de la Información
+        user_id:
+          type: integer
+          description: Usuario que registró la entrega, tomado del token.
+          example: 1
+        user_name:
+          type: string
+          description: Nombre del usuario que registró la entrega.
+          example: Administrador
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones generales de la entrega.
+          example: Entrega inicial de equipo
+        items:
+          type: array
+          description: Equipos incluidos en la entrega.
+          items:
+            $ref: '#/components/schemas/DeliveryDocumentDetail'
+
+    DeliveryDocumentDetail:
+      type: object
+      description: |
+        Equipo entregado, tal como lo emite `DeliveryDocumentDetailResource`. Es la
+        forma que devuelven `GET /delivery_document_details`,
+        `GET /delivery_document_details/{id}` y el arreglo `items` de
+        `DeliveryDocument`. Los datos del equipo vienen aplanados desde
+        `equipments` y su marca.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del detalle.
+          example: 1
+        equipment_id:
+          type: integer
+          description: |
+            Equipo entregado. **Ojo**: el recurso lo llena hoy con el `id` del
+            propio detalle, no con `delivery_document_details.equipment_id`.
+          example: 1
+        equipment_name:
+          type: string
+          description: Nombre del equipo (`equipments.name`).
+          example: Laptop Dell Latitude
+        equipment_brand:
+          type: string
+          description: Nombre de la marca del equipo (`brands.name`).
+          example: Dell
+        equipment_model:
+          type: string
+          description: Modelo del equipo.
+          example: Latitude 5440
+        equipment_serie:
+          type: string
+          description: Número de serie del equipo.
+          example: 5CD1234XYZ
+        is_used:
+          type: string
+          description: Estado del equipo, ya traducido a `Usado` o `Nuevo`.
+          enum: [Usado, Nuevo]
+          example: Nuevo
+        original:
+          type: string
+          description: Procedencia del equipo, ya traducida a `Original` o `Copia`.
+          enum: [Original, Copia]
+          example: Original
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones de este equipo en particular.
+          example: Se entrega sin cargador
+
+    DeliveryDocumentRequest:
+      type: object
+      description: |
+        Cuerpo `multipart/form-data` aceptado por `POST /delivery_documents`
+        (`App\Http\Requests\CreateDeliveryDocumentRequest`). Los items se envían
+        con la notación de arreglo de formularios: `items[0][equipment_id]`,
+        `items[0][observations]`, `items[1][equipment_id]`, …
+
+        `user_id` y `delivery_date` los asigna el servidor y **no se aceptan aquí**.
+      required: [location, responsable_signature, administrador_signature, employee_id, items]
+      properties:
+        location:
+          type: integer
+          description: |
+            Planta donde se hace la entrega. Regla `required`. La columna es
+            `integer`: `1` se muestra luego como `Planta Tejar` y cualquier otro
+            valor como `Planta Parramos`.
+          example: 1
+        responsable_signature:
+          type: string
+          format: binary
+          description: |
+            Firma del responsable. Reglas
+            `required|file|mimes:png,jpg,jpeg|max:2048` (2 MB). El servicio de
+            almacenamiento acepta además `webp` y hasta 5 MB, pero manda la regla
+            del FormRequest.
+        administrador_signature:
+          type: string
+          format: binary
+          description: |
+            Firma del administrador. Reglas `required|mimes:png,jpg,jpeg|max:2048`
+            (2 MB).
+        employee_id:
+          type: integer
+          description: Empleado que recibe. Reglas `required|exists:employees,id`.
+          example: 3
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones generales de la entrega. Regla `nullable`.
+          example: Entrega inicial de equipo
+        items:
+          type: array
+          minItems: 1
+          description: |
+            Equipos entregados. Reglas `required|array|min:1`: hace falta al menos
+            uno.
+          items:
+            type: object
+            required: [equipment_id]
+            properties:
+              equipment_id:
+                type: integer
+                description: |
+                  Equipo entregado. Reglas `required|exists:equipments,id`.
+                example: 1
+              observations:
+                type: string
+                nullable: true
+                description: Observaciones de este equipo. Regla `nullable`.
+                example: Se entrega sin cargador
+
+    DeliveryDocumentDetailRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `POST /delivery_document_details`
+        (`App\Http\Requests\CreateDeliveryDocumentDetailRequest`), para agregar un
+        equipo a un documento ya existente.
+      required: [id, delivery_document_id, equipment_id]
+      properties:
+        id:
+          type: integer
+          description: |
+            Regla `required`. **No se usa para nada**: `id` no es asignable en el
+            modelo y la tabla lo genera sola, pero la petición falla con `422` si
+            no se envía.
+          example: 1
+        delivery_document_id:
+          type: integer
+          description: |
+            Documento al que pertenece. Reglas
+            `required|exists:delivery_documents,id`.
+          example: 1
+        equipment_id:
+          type: integer
+          description: Equipo entregado. Reglas `required|exists:equipments,id`.
+          example: 2
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones de este equipo. Regla `nullable`.
+          example: Con estuche
+
     SuccessResponse:
       type: object
       description: Envoltura estándar de respuesta exitosa (`ResponseHandler::success`).
@@ -1985,6 +2652,121 @@ components:
                 message: The selected department id is invalid.
                 errors:
                   department_id: ['The selected department id is invalid.']
+
+    DeliveryDocumentNotFound:
+      description: No existe un documento de entrega con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Documento de Entrega no encontrado
+            data: null
+
+    DeliveryDocumentDetailNotFound:
+      description: No existe un detalle con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Detalles de Documento de Entrega no encontrado
+            data: null
+
+    DeliveryDocumentValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CreateDeliveryDocumentRequest`. Sólo
+        `location` tiene mensaje en español (`messages()`); el resto salen con el
+        texto predeterminado de Laravel.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: La planta es requerida
+                errors:
+                  location: ['La planta es requerida']
+                  responsable_signature: ['The responsable signature field is required.']
+                  administrador_signature: ['The administrador signature field is required.']
+                  employee_id: ['The employee id field is required.']
+                  items: ['The items field is required.']
+            sinItems:
+              summary: Se envió items vacío
+              value:
+                message: The items field must have at least 1 items.
+                errors:
+                  items: ['The items field must have at least 1 items.']
+            equipoInexistente:
+              summary: Un item apunta a un equipo que no existe
+              value:
+                message: The selected items.0.equipment_id is invalid.
+                errors:
+                  items.0.equipment_id: ['The selected items.0.equipment_id is invalid.']
+            firmaInvalida:
+              summary: La firma no es una imagen aceptada o pesa más de 2 MB
+              value:
+                message: 'The responsable signature field must be a file of type: png, jpg, jpeg.'
+                errors:
+                  responsable_signature: ['The responsable signature field must be a file of type: png, jpg, jpeg.']
+
+    DeliveryDocumentDetailValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CreateDeliveryDocumentDetailRequest`.
+        Este FormRequest no define `messages()`, así que los textos son los
+        predeterminados de Laravel.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: The id field is required. (and 2 more errors)
+                errors:
+                  id: ['The id field is required.']
+                  delivery_document_id: ['The delivery document id field is required.']
+                  equipment_id: ['The equipment id field is required.']
+            documentoInexistente:
+              summary: delivery_document_id no corresponde a ningún documento
+              value:
+                message: The selected delivery document id is invalid.
+                errors:
+                  delivery_document_id: ['The selected delivery document id is invalid.']
+
+    SignatureUploadError:
+      description: |
+        Una de las firmas no se pudo guardar (`BadRequestError` lanzado por
+        `App\Services\Storage\ImageStorageService`). Se comprueba después de la
+        validación del FormRequest.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            archivoInvalido:
+              summary: La subida llegó corrupta o incompleta
+              value:
+                statusCode: 400
+                message: El archivo enviado no es válido
+                data: null
+            formatoNoSoportado:
+              summary: El archivo no es una imagen aceptada
+              value:
+                statusCode: 400
+                message: El archivo debe ser una imagen JPG, PNG o WEBP
+                data: null
+            noSePudoGuardar:
+              summary: Falló la escritura en el disco
+              value:
+                statusCode: 400
+                message: No se pudo guardar la imagen
+                data: null
 
     Unauthenticated:
       description: Token ausente, inválido o expirado.

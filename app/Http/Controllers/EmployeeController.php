@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ResponseHandler;
+use App\Http\Resources\EmployeeResource;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 
@@ -12,15 +13,7 @@ class EmployeeController extends Controller
     {
         try {
             $employees = Employee::all();
-
-            $data = $employees->map(function ($employee) { 
-                return [
-                    'id' => $employee->id,
-                    'code' => $employee->code,
-                    'name' => $employee->name,
-                    'department' => $employee->department->name
-                ];
-            });
+            $data = EmployeeResource::collection($employees);
 
             return ResponseHandler::success($data, 'Empleados Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

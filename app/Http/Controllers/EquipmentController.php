@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Resources\EquipmentResource;
 use App\Http\Requests\Equipment\EquipmentRequest;
 use App\Models\Equipment;
 
@@ -16,15 +17,7 @@ class EquipmentController extends Controller
     {
         try {
             $equipments = Equipment::with(['brand', 'user'])->get();
-
-            $data = $equipments->map(function ($equipment) {
-                return [
-                    'id' => $equipment->id,
-                    'name' => $equipment->name,
-                    'brand' => $equipment->brand->name,
-                    'registeredBy' => $equipment->user->name,
-                ];
-            });
+            $data = EquipmentResource::collection($equipments);
 
             return ResponseHandler::success($data, 'Equipos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
