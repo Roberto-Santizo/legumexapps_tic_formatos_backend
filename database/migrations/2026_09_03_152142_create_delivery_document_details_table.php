@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('delivery_document_id')->constrained()->on('delivery_documents')->cascadeOnDelete();
             $table->foreignId('equipment_id')->constrained()->on('equipments');
-            $table->string('observations');
+            $table->string('observations')->nullable();
             $table->timestamps();
         });
     }

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('administrador_signature');
             $table->foreignId('employee_id')->constrained();
             $table->foreignId('user_id')->constrained();
-            $table->string('observations');
+            $table->string('observations')->nullable();
             $table->timestamps();
         });
     }

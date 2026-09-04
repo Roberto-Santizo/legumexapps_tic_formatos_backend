@@ -16,20 +16,19 @@ class DeliveryDocumentDetailController extends Controller
         try {
             $query = DeliveryDocumentDetail::with(['equipment']);
 
-            if ($request->validated('deliveryDocumentId',)) {
-                $query->where('delivery_document_id', $request->validated('deliveryDocumentId'));
+            if ($request->query('deliveryDocumentId')) {
+                $query->where('delivery_document_id', $request->query('deliveryDocumentId'));
             }
 
             $delivery_document_details = $query->get();
 
             $data = DeliveryDocumentDetailResource::collection($delivery_document_details);
-            
+
             return ResponseHandler::success($data, 'Detalles de Documento de Entregas Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
- 
 
     public function store(CreateDeliveryDocumentDetailRequest $request)
     {
@@ -59,7 +58,7 @@ class DeliveryDocumentDetailController extends Controller
 
     public function delete(string $id)
     {
-         try {
+        try {
             $delivery_document_details = $this->findDeliveryDocumentDetailOrFail($id);
             $delivery_document_details->delete();
 

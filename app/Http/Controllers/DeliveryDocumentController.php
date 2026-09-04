@@ -9,6 +9,7 @@ use App\Http\Resources\DeliveryDocumentResource;
 use App\Models\DeliveryDocument;
 use App\Services\Storage\ImageStorageService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DeliveryDocumentController extends Controller
 {
@@ -29,10 +30,13 @@ class DeliveryDocumentController extends Controller
         try {
             $data = $request->validated();
 
+            $items = $data['items'];
+            unset($data['items']);
+
             $data['user_id'] = auth()->user()->id;
             $data['delivery_date'] = Carbon::now();
 
-            $imageServer =  new ImageStorageService();
+            $imageServer = new ImageStorageService;
             $file = $request->file('responsable_signature');
             $file2 = $request->file('administrador_signature');
 
@@ -42,9 +46,12 @@ class DeliveryDocumentController extends Controller
             $data['responsable_signature'] = $filename;
             $data['administrador_signature'] = $filename2;
 
-            DeliveryDocument::create($data);
+            DB::transaction(function () use ($data, $items) {
+                $delivery_document = DeliveryDocument::create($data);
+                $delivery_document->details()->createMany($items);
+            });
 
-            return ResponseHandler::success($data, 'Documento de Entregas Creado Correctamente', 201);
+            return ResponseHandler::success(true, 'Documento de Entregas Creado Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
