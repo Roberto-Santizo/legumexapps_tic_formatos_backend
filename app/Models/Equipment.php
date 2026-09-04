@@ -17,4 +17,8 @@ class Equipment extends Model
     public function user(){
         return $this->belongsTo(User::class, 'registerdBy', 'id');
     }
+
+    public function deliveryDetail(){
+        return $this->hasMany(DeliveryDocumentDetail::class);;
+    }
 }

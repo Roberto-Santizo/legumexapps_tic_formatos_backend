@@ -14,6 +14,10 @@ class DeliveryDocumentDetail extends Model
         return $this->belongsTo(DeliveryDocument::class);
     }
 
+    public function returnDetail(){
+        return $this->hasOne(ReturnDocumentDetail::class);
+    }
+
     public function equipment(){
         return $this->hasOne(Equipment::class, 'id', 'equipment_id');
     }

@@ -14,13 +14,16 @@ class EquipmentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $lastDelivery = $this->deliveryDetail->sortByDesc('created_at')->first();
         return [
                 'id' => $this->id,
                 'name' => $this->name,
                 'brand' => $this->brand->name,
                 'registeredBy' => $this->user->name,
-                'original' => $this->original ? 'Nuevo' : 'Usado'
-                ];
+                'original' => $this->original ? 'Nuevo' : 'Usado',
+                'isAssigned' => $lastDelivery !== null && $lastDelivery->returnDetail === null
+        
+        ];
     }
 }
     
