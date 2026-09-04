@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['location','delivery_date','responsable_signature','administrador_signature','employee_id','user_id','observations'])]
+#[Fillable(['location','delivery_date','responsable_signature','administrador_signature','employee_id','user_id','observation'])]
 class DeliveryDocument extends Model
 {
     protected $table = 'delivery_documents';
