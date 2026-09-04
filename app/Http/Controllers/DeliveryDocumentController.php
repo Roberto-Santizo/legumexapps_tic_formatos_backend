@@ -4,18 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\CreateDeliveryDocumentRequest;
 use App\Http\Resources\DeliveryDocumentResource;
 use App\Models\DeliveryDocument;
 use App\Services\Storage\ImageStorageService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 
 class DeliveryDocumentController extends Controller
 {
     public function index()
     {
         try {
-            $delivery_documents = DeliveryDocument::with(['employee_id', 'user_id'])->get();
+            $delivery_documents = DeliveryDocument::with(['employee', 'user'])->get();
             $data = DeliveryDocumentResource::collection($delivery_documents);
 
             return ResponseHandler::success($data, 'Documentos de Entrega Obtenidos Correctamente', 200);
@@ -24,19 +24,14 @@ class DeliveryDocumentController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(CreateDeliveryDocumentRequest $request)
     {
         try {
-            $data = $request->validate([
-                'location' => 'required',
-                'delivery_date' => 'required',
-                'responsable_signature' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'employee_id' => ['required', 'exists:employees,id'],
-                'user_id' => ['required', 'exists:users,id'],
-                'observations' => ['nullable']
-            ]);
-            
+            $data = $request->validated();
+
+            $data['user_id'] = auth()->user()->id;
+            $data['delivery_date'] = Carbon::now();
+
             $imageServer =  new ImageStorageService();
             $file = $request->file('responsable_signature');
             $file2 = $request->file('administrador_signature');
@@ -63,32 +58,19 @@ class DeliveryDocumentController extends Controller
         try {
             $delivery_documents = $this->findDeliveryDocumentOrFail($id);
 
-            return ResponseHandler::success($delivery_documents, 'Documento de Entrega Obtenido Correctamente', 200);
+            return ResponseHandler::success(new DeliveryDocumentResource($delivery_documents), 'Documento de Entrega Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function delete(string $id)
     {
         try {
-            $data = $request->validate([
-                'location' => 'required',
-                'delivery_date' => 'required',
-                'responsable_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'employee_id' => ['required', 'exists:employee,id'],
-                'user_id' => ['required', 'exists:user,id'],
-                'observations' => 'nullable|string'
-            ]);
-            $delivery_documents = DeliveryDocument::find($id);
+            $delivery_documents = $this->findDeliveryDocumentOrFail($id);
+            $delivery_documents->delete();
 
-            $delivery_documents->update($data);
-
-            return ResponseHandler::success($delivery_documents, 'Documento de Entregas Actualizado Correctamente', 200);
+            return ResponseHandler::success(true, 'Documento de Entrega  Eliminados Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

@@ -16,8 +16,13 @@ class DeliveryDocumentDetailResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'delivery_document_id' => $this->delivery_document->delivery_document_id,
-            'equipment_id' => $this->equipment->euipment,
+            'equipment_id' => $this->id,
+            'equipment_name' => $this->equipment->name,
+            'equipment_brand' => $this->equipment->brand->name,
+            'equipment_model' => $this->equipment->model,
+            'equipment_serie' => $this->equipment->serie,
+            'is_used' => $this->equipment->is_used ? 'Usado' : 'Nuevo',
+            'original' => $this->equipment->original ? 'Original' : 'Copia',
             'observations' => $this->observations
         ];
     }

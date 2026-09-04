@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ReturnDocumentController;
 use App\Http\Controllers\ReturnDocumentDetailController;
 use Illuminate\Support\Facades\Route;
 

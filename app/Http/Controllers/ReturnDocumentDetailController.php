@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
-use App\Http\Requests\ReturnDocumentDetails\ReturnDocumentDetailRequest;
-use App\Http\Resources\DeliveryDocumentDetailResource;
-use App\Models\DeliveryDocumentDetail;
+use App\Http\Requests\ReturnDocumentDetail\ReturnDocumentDetailRequest;
+use App\Http\Resources\ReturnDocumentDetailResource;
 use App\Models\ReturnDocumentDetail;
 
 class ReturnDocumentDetailController extends Controller
@@ -17,8 +16,8 @@ class ReturnDocumentDetailController extends Controller
     public function index()
     {
         try {
-            $delivery_document_details = DeliveryDocumentDetail::with(['delivery_document_detail_id'])->get();
-            $data = DeliveryDocumentDetailResource::collection($delivery_document_details);
+            $return_document_details = ReturnDocumentDetail::with(['delivery_document_detail_id'])->get();
+            $data = ReturnDocumentDetailResource::collection($return_document_details);
             
             return ResponseHandler::success($data, 'Detalles de Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

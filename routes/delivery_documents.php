@@ -8,4 +8,5 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/delivery_documents', [DeliveryDocumentController::class, 'index']);
     Route::get('/delivery_documents/{id}', [DeliveryDocumentController::class, 'show']);
     Route::put('/delivery_documents/{id}', [DeliveryDocumentController::class, 'update']);
+    Route::delete('/delivery_documents/{id}', [DeliveryDocumentController::class, 'delete']);
 });

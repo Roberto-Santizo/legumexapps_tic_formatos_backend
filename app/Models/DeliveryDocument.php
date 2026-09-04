@@ -10,12 +10,16 @@ class DeliveryDocument extends Model
 {
     protected $table = 'delivery_documents';
 
+    protected $casts = [
+        'delivery_date' => 'datetime'
+    ];
+
     public function employee(){
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class, 'employee_id', 'id');
     }
 
     public function user(){
-        return $this->belongsTo(User::class, 'id');
+        return $this->belongsTo(User::class);
     }
 
     public function details(){

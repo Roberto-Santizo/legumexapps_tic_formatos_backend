@@ -4,34 +4,37 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\CreateDeliveryDocumentDetailRequest;
 use App\Http\Resources\DeliveryDocumentDetailResource;
 use App\Models\DeliveryDocumentDetail;
 use Illuminate\Http\Request;
 
-class DeliveryDocumentController extends Controller
+class DeliveryDocumentDetailController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $delivery_document_details = DeliveryDocumentDetail::with(['employee_id', 'user_id'])->get();
+            $query = DeliveryDocumentDetail::with(['equipment']);
+
+            if ($request->validated('deliveryDocumentId',)) {
+                $query->where('delivery_document_id', $request->validated('deliveryDocumentId'));
+            }
+
+            $delivery_document_details = $query->get();
+
             $data = DeliveryDocumentDetailResource::collection($delivery_document_details);
             
-            return ResponseHandler::success($data, 'Detalles de Documentos de Entrega Obtenidos Correctamente', 200);
+            return ResponseHandler::success($data, 'Detalles de Documento de Entregas Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
+ 
 
-    public function store(Request $request)
+    public function store(CreateDeliveryDocumentDetailRequest $request)
     {
         try {
-            $data = $request->validate([
-                'id' => 'required',
-                'delivery_document_id' => 'required',
-                'equipment_id' => 'required',
-                'observations' => 'required'
-            ]);
-
+            $data = $request->validated();
             DeliveryDocumentDetail::create($data);
 
             return ResponseHandler::success($data, 'Detalles de Documento de Entregas Creado Correctamente', 201);
@@ -48,29 +51,19 @@ class DeliveryDocumentController extends Controller
         try {
             $delivery_document_details = $this->findDeliveryDocumentDetailOrFail($id);
 
-            return ResponseHandler::success($delivery_document_details, 'Documento de Entrega Obtenido Correctamente', 200);
+            return ResponseHandler::success(new DeliveryDocumentDetailResource($delivery_document_details), 'Detalles de Documento de Entrega Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function delete(string $id)
     {
-        try {
-            $data = $request->validate([
-                'id' => 'required',
-                'delivery_document_id' => 'required',
-                'equipment_id' => 'required',
-                'observations' => 'required'
-                ]);
-            $delivery_document_details = DeliveryDocumentDetail::find($id);
+         try {
+            $delivery_document_details = $this->findDeliveryDocumentDetailOrFail($id);
+            $delivery_document_details->delete();
 
-            $delivery_document_details->update($data);
-
-            return ResponseHandler::success($delivery_document_details, 'Empleado Actualizado Correctamente', 200);
+            return ResponseHandler::success(true, 'Detalles de Documento de Entrega Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -84,7 +77,7 @@ class DeliveryDocumentController extends Controller
         $delivery_document_details = DeliveryDocumentDetail::find($id);
 
         if (! $delivery_document_details) {
-            throw new NotFoundError('Documento de Entrega no encontrado');
+            throw new NotFoundError('Detalles de Documento de Entrega no encontrado');
         }
 
         return $delivery_document_details;

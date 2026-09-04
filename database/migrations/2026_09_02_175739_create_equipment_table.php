@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('brand_id')->constrained();
             $table->string('serie');
             $table->boolean('original');
-            $table->boolean('is_used');
+            //$table->boolean('is_used');
             $table->string('type');
             $table->foreignId('registerdBy')->constrained()->on('users');
             $table->timestamps();

@@ -16,13 +16,17 @@ class DeliveryDocumentResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'location' => $this->location,
-            'delivery_date' => $this->delivery_date,
+            'location' => $this->location == 1 ? 'Planta Tejar' : 'Planta Parramos',
+            'delivery_date' => $this->delivery_date->format('d-m-Y h:m:s A'),
             'responsable_signature' => $this->responsable_signature,
             'administrador_signature' => $this->administrador_signature,
-            'employee_id' => $this->employees->employee_id,
-            'user_id' => $this->users->user_id,
-            'observations' => $this->observations
+            'employee_id' => $this->employee->id,
+            'employee_name' => $this->employee->name,
+            'employee_department' => $this->employee->department->name,
+            'user_id' => $this->user->id,
+            'user_name' => $this->user->name,
+            'observations' => $this->observations,
+            'items' => DeliveryDocumentDetailResource::collection($this->details)
         ];
     }
 }
