@@ -23,17 +23,24 @@ class CreateDeliveryDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-                'location' => 'required',
-                'responsable_signature' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'employee_id' => ['required', 'exists:employees,id'],
-                'observations' => ['nullable'],
-            ];
+            'location' => 'required',
+            'responsable_signature' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
+            'employee_id' => ['required', 'exists:employees,id'],
+            'observations' => ['nullable'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.equipment_id' => ['required', 'exists:equipments,id'],
+            'items.*.observations' => ['nullable'],
+        ];
     }
 
-    public function messages(){
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
         return [
-            'location.required' => 'La planta es requerida'
+            'location.required' => 'La planta es requerida',
         ];
     }
 }

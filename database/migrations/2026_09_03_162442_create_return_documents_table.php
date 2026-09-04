@@ -16,7 +16,7 @@ return new class extends Migration
             $table->datetime('return_date');
             $table->string('responsable_signature');
             $table->string('administrador_signature');
-            $table->string('observations');
+            $table->string('observations')->nullable();
             $table->foreignId('delivery_document_id')->constrained();
             $table->timestamps();
         });
