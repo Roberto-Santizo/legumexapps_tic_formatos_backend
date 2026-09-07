@@ -8,3 +8,4 @@ Route::get('/employees', [EmployeeController::class, 'index'])->middleware(['jwt
 Route::get('/employees/{id}', [EmployeeController::class, 'show'])->middleware(['jwt.auth']);
 Route::get('/employees/{id}/equipments', [EmployeeController::class, 'equipments'])->middleware(['jwt.auth']);
 Route::put('/employees/{id}', [EmployeeController::class, 'update'])->middleware(['jwt.auth']);
+Route::delete('/employees/{id}', [EmployeeController::class, 'delete'])->middleware(['jwt.auth']);

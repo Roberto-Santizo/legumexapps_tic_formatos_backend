@@ -1,9 +1,12 @@
 <?php
 
 namespace App\Http\Requests;
+namespace App\Enums;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use App\Enums\Plant;
+use Illuminate\Validation\Rule;
 
 class UpdateDeliveryDocumentRequest extends FormRequest
 {
@@ -25,7 +28,7 @@ class UpdateDeliveryDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'location' => ['required', 'integer'],
+            'location' => ['required', 'integer', Rule::enum(Plant::class)],
             'observations' => ['nullable', 'string'],
         ];
     }
@@ -36,8 +39,9 @@ class UpdateDeliveryDocumentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'location.required' => 'La planta es requerida',
+            'location.enum' => 'La planta seleccionada no es válida',
             'location.integer' => 'La planta debe ser un valor numérico',
         ];
     }
+
 }

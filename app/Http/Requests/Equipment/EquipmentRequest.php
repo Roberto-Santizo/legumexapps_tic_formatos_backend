@@ -22,7 +22,13 @@ class EquipmentRequest extends FormRequest
             'name' => 'required|string|max:255',
             'model' => 'required|string|max:255',
             'brand_id' => ['required', 'integer', 'exists:brands,id'],
-            'serie' => 'required|string|max:255',
+            'serie' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('equipments', 'serie')->ignore($this->route('id')),
+            ],
+
             'original' => 'required|boolean',
             'is_used' => 'required|boolean',
             'type' => ['required', 'string', Rule::enum(EquipmentType::class)],
