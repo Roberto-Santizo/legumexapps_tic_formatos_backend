@@ -14,6 +14,8 @@ class DeliveryDocumentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $pending = $this->details->filter(fn ($detail) => $detail->returnDetail === null);
+
         return [
             'id' => $this->id,
             'location' => $this->location == 1 ? 'Planta Tejar' : 'Planta Parramos',
@@ -26,7 +28,10 @@ class DeliveryDocumentResource extends JsonResource
             'user_id' => $this->user->id,
             'user_name' => $this->user->name,
             'observations' => $this->observations,
-            'items' => DeliveryDocumentDetailResource::collection($this->details)
+            'status' => $this->status(),
+            'items_count' => $this->details->count(),
+            'pending_items_count' => $pending->count(),
+            'items' => DeliveryDocumentDetailResource::collection($this->details),
         ];
     }
 }

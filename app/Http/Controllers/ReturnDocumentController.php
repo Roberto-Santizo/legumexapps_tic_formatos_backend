@@ -4,52 +4,84 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\CreateReturnDocumentRequest;
+use App\Http\Requests\ReturnDocumentIndexRequest;
+use App\Http\Requests\UpdateReturnDocumentRequest;
 use App\Http\Resources\ReturnDocumentResource;
+use App\Interfaces\Storage\ImageStorageServiceInterface;
 use App\Models\ReturnDocument;
-use App\Services\Storage\ImageStorageService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ReturnDocumentController extends Controller
 {
-    public function index()
+    /**
+     * Relaciones necesarias para armar `ReturnDocumentResource`.
+     *
+     * @var array<int, string>
+     */
+    private const RELATIONS = [
+        'delivery_document.employee.department',
+        'delivery_document.details.returnDetail',
+        'user',
+        'details.delivery_document_details.equipment.brand',
+    ];
+
+    /**
+     * Listado de devoluciones. Acepta los filtros `deliveryDocumentId` y
+     * `employeeId`.
+     */
+    public function index(ReturnDocumentIndexRequest $request)
     {
         try {
-            $return_documents = ReturnDocument::with(['delivery_document_id'])->get();
+            $query = ReturnDocument::with(self::RELATIONS);
+
+            if ($request->validated('deliveryDocumentId')) {
+                $query->where('delivery_document_id', $request->validated('deliveryDocumentId'));
+            }
+
+            if ($request->validated('employeeId')) {
+                $employeeId = $request->validated('employeeId');
+
+                $query->whereHas('delivery_document', function (Builder $document) use ($employeeId) {
+                    $document->where('employee_id', $employeeId);
+                });
+            }
+
+            $return_documents = $query->orderByDesc('id')->get();
             $data = ReturnDocumentResource::collection($return_documents);
-            
+
             return ResponseHandler::success($data, 'Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
-    public function store(Request $request)
+    /**
+     * Crea la devolución y sus detalles en una sola transacción. La devolución
+     * puede ser parcial: sólo se envían los equipos que regresan.
+     */
+    public function store(CreateReturnDocumentRequest $request, ImageStorageServiceInterface $imageStorage)
     {
         try {
-            $data = $request->validate([
-                'return_date' => 'required',
-                'responsable_signature' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'administrador_signature' => ['required', 'mimes:png,jpg,jpeg', 'max:2048'],
-                'observations' => ['nullable'],
-                'delivery_document_id' =>['required', 'exists:delivery_documents,id']   
-            ]);
+            $data = $request->validated();
 
+            $items = $data['items'];
+            unset($data['items']);
 
-            $imageServer =  new ImageStorageService();
-            $file = $request->file('responsable_signature');
-            $file2 = $request->file('administrador_signature');
+            $data['return_date'] = Carbon::now();
+            $data['user_id'] = auth()->user()->id;
 
-            $filename = $imageServer->store($file);
-            $filename2 = $imageServer->store($file2);
+            $data['responsable_signature'] = $imageStorage->store($request->file('responsable_signature'));
+            $data['administrador_signature'] = $imageStorage->store($request->file('administrador_signature'));
 
-            $data['responsable_signature'] = $filename;
-            $data['administrador_signature'] = $filename2;
+            DB::transaction(function () use ($data, $items) {
+                $return_document = ReturnDocument::create($data);
+                $return_document->details()->createMany($items);
+            });
 
-            ReturnDocument::create($data);
-
-            return ResponseHandler::success($data, 'Devolución de Documento Creado Correctamente', 201);
+            return ResponseHandler::success(true, 'Devolución de Documento Creado Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -63,31 +95,23 @@ class ReturnDocumentController extends Controller
         try {
             $return_documents = $this->findReturnDocumentOrFail($id);
 
-            return ResponseHandler::success($return_documents, 'Devolución de Documento Obtenido Correctamente', 200);
+            return ResponseHandler::success(new ReturnDocumentResource($return_documents), 'Devolución de Documento Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
     /**
-     * Update the specified resource in storage.
+     * Corrige las observaciones de una devolución ya firmada.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateReturnDocumentRequest $request, string $id)
     {
         try {
-            $data = $request->validate([
-                'return_date' => 'required',
-                'responsable_signature' => ['required', 'max:2048'],
-                'administrador_signature' => ['required',  'max:2048'],
-                'observations' => ['nullable'],
-                'delivery_document_id' =>['required', 'exists:delivery_documents,id']   
-            ]);
-            
-            $return_documents = ReturnDocument::find($id);
+            $return_documents = $this->findReturnDocumentOrFail($id);
 
-            $return_documents->update($data);
+            $return_documents->update($request->validated());
 
-            return ResponseHandler::success($return_documents, 'Devolución de Documento Actualizado Correctamente', 200);
+            return ResponseHandler::success(new ReturnDocumentResource($return_documents->fresh(self::RELATIONS)), 'Devolución de Documento Actualizado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -98,10 +122,10 @@ class ReturnDocumentController extends Controller
      */
     private function findReturnDocumentOrFail(string $id): ReturnDocument
     {
-        $return_documents = ReturnDocument::find($id);
+        $return_documents = ReturnDocument::with(self::RELATIONS)->find($id);
 
         if (! $return_documents) {
-            throw new NotFoundError('Documento de Entrega no encontrado');
+            throw new NotFoundError('Devolución de Documento no encontrada');
         }
 
         return $return_documents;

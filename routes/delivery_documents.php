@@ -7,6 +7,7 @@ Route::middleware('jwt.auth')->group(function () {
     Route::post('/delivery_documents', [DeliveryDocumentController::class, 'store']);
     Route::get('/delivery_documents', [DeliveryDocumentController::class, 'index']);
     Route::get('/delivery_documents/{id}', [DeliveryDocumentController::class, 'show']);
+    Route::get('/delivery_documents/{id}/pending_items', [DeliveryDocumentController::class, 'pendingItems']);
     Route::put('/delivery_documents/{id}', [DeliveryDocumentController::class, 'update']);
     Route::delete('/delivery_documents/{id}', [DeliveryDocumentController::class, 'delete']);
 });

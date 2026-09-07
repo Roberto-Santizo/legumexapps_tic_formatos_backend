@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
-use App\Http\Resources\EquipmentResource;
+use App\Http\Requests\Equipment\EquipmentAvailableRequest;
 use App\Http\Requests\Equipment\EquipmentRequest;
+use App\Http\Resources\AssignmentResource;
+use App\Http\Resources\EquipmentResource;
+use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
 
 class EquipmentController extends Controller
@@ -16,10 +19,67 @@ class EquipmentController extends Controller
     public function index()
     {
         try {
-            $equipments = Equipment::with(['brand', 'user'])->get();
+            $equipments = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail'])->get();
             $data = EquipmentResource::collection($equipments);
 
             return ResponseHandler::success($data, 'Equipos Obtenidos Correctamente', 200);
+        } catch (\Throwable $th) {
+            return ResponseHandler::error($th);
+        }
+    }
+
+    /**
+     * Equipos sin entrega activa, es decir, los que se pueden incluir en una
+     * nueva entrega. Acepta los filtros `type` y `search`.
+     */
+    public function available(EquipmentAvailableRequest $request)
+    {
+        try {
+            $query = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail'])->available();
+
+            if ($request->validated('type')) {
+                $query->where('type', $request->validated('type'));
+            }
+
+            if ($request->validated('search')) {
+                $search = $request->validated('search');
+
+                $query->where(function ($equipment) use ($search) {
+                    $equipment->where('name', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhere('serie', 'like', "%{$search}%");
+                });
+            }
+
+            $data = EquipmentResource::collection($query->get());
+
+            return ResponseHandler::success($data, 'Equipos Disponibles Obtenidos Correctamente', 200);
+        } catch (\Throwable $th) {
+            return ResponseHandler::error($th);
+        }
+    }
+
+    /**
+     * Historial de asignaciones del equipo: cada entrega en la que se incluyó y
+     * su devolución cuando ya se registró.
+     */
+    public function history(string $id)
+    {
+        try {
+            $equipment = $this->findEquipmentOrFail($id);
+
+            $assignments = DeliveryDocumentDetail::with([
+                'equipment.brand',
+                'delivery_documents.employee.department',
+                'returnDetail.return_document',
+            ])
+                ->where('equipment_id', $equipment->id)
+                ->orderByDesc('id')
+                ->get();
+
+            $data = AssignmentResource::collection($assignments);
+
+            return ResponseHandler::success($data, 'Historial del Equipo Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

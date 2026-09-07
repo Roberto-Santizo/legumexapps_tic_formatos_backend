@@ -16,17 +16,29 @@ class CreateDeliveryDocumentDetailRequest extends FormRequest
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Agrega un equipo a un documento de entrega ya creado.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'id' => 'required',
-            'delivery_document_id' => ['required','exists:delivery_documents,id'],
+            'delivery_document_id' => ['required', 'exists:delivery_documents,id'],
             'equipment_id' => ['required', 'exists:equipments,id'],
-            'observations' => ['nullable']
+            'observations' => ['nullable'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'delivery_document_id.required' => 'El documento de entrega es requerido',
+            'delivery_document_id.exists' => 'El documento de entrega seleccionado no existe',
+            'equipment_id.required' => 'El equipo es requerido',
+            'equipment_id.exists' => 'El equipo seleccionado no existe',
         ];
     }
 }

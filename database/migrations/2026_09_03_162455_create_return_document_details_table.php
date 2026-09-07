@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('return_document_details', function (Blueprint $table) {
             $table->id();
-            $table->string('observations')->nullable();
-            $table->foreignId('delivery_document_detail_id')->constrained()->on('delivery_documents');
+            $table->string('observations');
+            $table->foreignId('return_document_id')->constrained()->on('return_documents')->cascadeOnDelete();;
+            $table->foreignId('delivery_document_detail_id')->constrained()->on('delivery_document_details')->cascadeOnDelete();;
             $table->timestamps();
         });
     }

@@ -4,21 +4,38 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
-use App\Http\Requests\ReturnDocumentDetail\ReturnDocumentDetailRequest;
+use App\Http\Requests\CreateReturnDocumentDetailRequest;
+use App\Http\Requests\UpdateReturnDocumentDetailRequest;
 use App\Http\Resources\ReturnDocumentDetailResource;
 use App\Models\ReturnDocumentDetail;
+use Illuminate\Http\Request;
 
 class ReturnDocumentDetailController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Relaciones necesarias para armar `ReturnDocumentDetailResource`.
+     *
+     * @var array<int, string>
      */
-    public function index()
+    private const RELATIONS = [
+        'delivery_document_details.equipment.brand',
+    ];
+
+    /**
+     * Display a listing of the resource. Acepta el filtro `returnDocumentId`.
+     */
+    public function index(Request $request)
     {
         try {
-            $return_document_details = ReturnDocumentDetail::with(['delivery_document_detail_id'])->get();
+            $query = ReturnDocumentDetail::with(self::RELATIONS);
+
+            if ($request->query('returnDocumentId')) {
+                $query->where('return_document_id', $request->query('returnDocumentId'));
+            }
+
+            $return_document_details = $query->get();
             $data = ReturnDocumentDetailResource::collection($return_document_details);
-            
+
             return ResponseHandler::success($data, 'Detalles de Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
@@ -28,17 +45,12 @@ class ReturnDocumentDetailController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(ReturnDocumentDetail $request)
+    public function store(CreateReturnDocumentDetailRequest $request)
     {
         try {
-            $data = $request->validate([
-                'observation' => ['nullable'],
-                'delivery_document_detail_id' => ['required', 'exists:delivery_document_details,id']   
-            ]);
+            $return_document_detail = ReturnDocumentDetail::create($request->validated());
 
-            ReturnDocumentDetail::create($data);
-            
-            return ResponseHandler::success($data, 'Detalles de Devolución de Documento Creados Correctamente', 201);
+            return ResponseHandler::success(new ReturnDocumentDetailResource($return_document_detail->load(self::RELATIONS)), 'Detalles de Devolución de Documentos Creados Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -52,37 +64,34 @@ class ReturnDocumentDetailController extends Controller
         try {
             $return_document_details = $this->findReturnDocumentDetailOrFail($id);
 
-            return ResponseHandler::success($return_document_details, 'Detalles de Devolución de Documento Obtenidos Correctamente', 200);
+            return ResponseHandler::success(new ReturnDocumentDetailResource($return_document_details), 'Detalles de Devolución de Documento Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
     /**
-     * Update the specified resource in storage.
+     * Corrige las observaciones del equipo devuelto.
      */
-    public function update(ReturnDocumentDetail $request, string $id)
+    public function update(UpdateReturnDocumentDetailRequest $request, string $id)
     {
         try {
-            $data = $request->validate([
-                'observation' => ['nullable'],
-                'delivery_document_detail_id' => ['required', 'exists:delivery_document_details,id']   
-            ]);
+            $return_document_details = $this->findReturnDocumentDetailOrFail($id);
 
-            ReturnDocumentDetail::create($data);
-            
-            return ResponseHandler::success($data, 'Detalles de Devolución de Documento Actualizado Correctamente', 201);
+            $return_document_details->update($request->validated());
+
+            return ResponseHandler::success(new ReturnDocumentDetailResource($return_document_details->fresh(self::RELATIONS)), 'Detalles de Devolución de Documento Actualizados Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
     /**
-     * @throws NotFoundError si la marca no existe.
+     * @throws NotFoundError si el detalle no existe.
      */
     private function findReturnDocumentDetailOrFail(string $id): ReturnDocumentDetail
     {
-        $return_document_details = ReturnDocumentDetail::find($id);
+        $return_document_details = ReturnDocumentDetail::with(self::RELATIONS)->find($id);
 
         if (! $return_document_details) {
             throw new NotFoundError('Detalles de Devolución de Documentos no encontrados');

@@ -14,10 +14,21 @@ class ReturnDocumentDetailResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $deliveryDetail = $this->delivery_document_details;
+
         return [
-                'id' => $this->id,
-                'observations' => $this->observations,
-                'delivery_document_detail_id' => $this->delivery_document_details->id
+            'id' => $this->id,
+            'return_document_id' => $this->return_document_id,
+            'delivery_document_detail_id' => $deliveryDetail->id,
+            'equipment_id' => $deliveryDetail->equipment_id,
+            'equipment_name' => $deliveryDetail->equipment->name,
+            'equipment_brand' => $deliveryDetail->equipment->brand->name,
+            'equipment_model' => $deliveryDetail->equipment->model,
+            'equipment_serie' => $deliveryDetail->equipment->serie,
+            'equipment_type' => $deliveryDetail->equipment->type,
+            'is_used' => $deliveryDetail->equipment->is_used ? 'Usado' : 'Nuevo',
+            'original' => $deliveryDetail->equipment->original ? 'Original' : 'Copia',
+            'observations' => $this->observations,
         ];
     }
 }
