@@ -5,20 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['delivery_document_id','equipment_id', 'observations'])]
+#[Fillable(['delivery_document_id', 'equipment_id', 'observations'])]
 class DeliveryDocumentDetail extends Model
 {
     protected $table = 'delivery_document_details';
 
-    public function delivery_documents(){
-        return $this->belongsTo(DeliveryDocument::class);
+    public function delivery_documents()
+    {
+        return $this->belongsTo(DeliveryDocument::class, 'delivery_document_id');
     }
 
-    public function returnDetail(){
+    public function returnDetail()
+    {
         return $this->hasOne(ReturnDocumentDetail::class);
     }
 
-    public function equipment(){
+    public function equipment()
+    {
         return $this->hasOne(Equipment::class, 'id', 'equipment_id');
     }
 }

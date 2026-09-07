@@ -101,6 +101,23 @@ tags:
       `POST /api/delivery_documents`; estas rutas sirven para consultarlos o para
       añadir y quitar equipos de un documento ya existente. **Todas están
       protegidas por el middleware `jwt.auth`**.
+  - name: Documentos de Devolución
+    description: |
+      Documentos de devolución de equipo (`return_documents`) junto con los
+      equipos que regresan. Una devolución siempre nace de un documento de
+      entrega y puede ser **parcial**: se devuelven sólo algunos de los equipos
+      entregados. **Todas las rutas están protegidas por el middleware
+      `jwt.auth`**. El usuario autenticado queda registrado en `user_id` y la
+      fecha (`return_date`) la asigna el servidor: **ninguno de los dos se
+      acepta en el cuerpo de la petición**.
+  - name: Detalles de Documento de Devolución
+    description: |
+      Equipos incluidos en una devolución (`return_document_details`). Cada uno
+      apunta al detalle de la entrega original
+      (`delivery_document_details`): sin entrega no puede haber devolución. Lo
+      habitual es crearlos junto al documento desde
+      `POST /api/return_documents`. **Todas están protegidas por el middleware
+      `jwt.auth`**.
 
 paths:
 
@@ -1327,6 +1344,36 @@ paths:
       operationId: listDeliveryDocuments
       security:
         - bearerAuth: []
+      parameters:
+        - name: employeeId
+          in: query
+          required: false
+          description: Filtra las entregas de un empleado.
+          schema:
+            type: integer
+            example: 3
+        - name: location
+          in: query
+          required: false
+          description: Filtra por planta (`1` = Planta Tejar).
+          schema:
+            type: integer
+            example: 1
+        - name: status
+          in: query
+          required: false
+          description: |
+            Filtra por estado de la entrega:
+
+            - `pendiente`: no se ha devuelto ningún equipo.
+            - `parcial`: se devolvió parte del equipo.
+            - `devuelto`: se devolvió todo.
+            - `activo`: `pendiente` + `parcial`, es decir, entregas con equipo
+              todavía en poder del empleado.
+          schema:
+            type: string
+            enum: [pendiente, parcial, devuelto, activo]
+            example: activo
       responses:
         '200':
           description: Documentos de entrega obtenidos correctamente.
@@ -1510,6 +1557,50 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+    put:
+      tags: [Documentos de Entrega]
+      summary: Corregir el encabezado de un documento de entrega
+      description: |
+        De un documento ya firmado **sólo se corrigen la planta y las
+        observaciones**: las firmas, la fecha de entrega, el empleado y el
+        usuario que registró quedan fijos. Para cambiar los equipos entregados
+        se usan las rutas de `/delivery_document_details`.
+
+        Ruta: `PUT /api/delivery_documents/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateDeliveryDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryDocumentUpdateRequest'
+      responses:
+        '200':
+          description: Documento de entrega actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Documento de Entrega Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/DeliveryDocument'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentNotFound'
+        '422':
+          $ref: '#/components/responses/DeliveryDocumentUpdateValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
     delete:
       tags: [Documentos de Entrega]
       summary: Eliminar un documento de entrega
@@ -1574,6 +1665,23 @@ paths:
           schema:
             type: integer
             example: 1
+        - name: equipmentId
+          in: query
+          required: false
+          description: |
+            Filtra los detalles de un equipo concreto. Tampoco se valida.
+          schema:
+            type: integer
+            example: 1
+        - name: pending
+          in: query
+          required: false
+          description: |
+            Con cualquier valor verdadero (`1`, `true`) deja sólo los detalles
+            **sin devolución registrada**.
+          schema:
+            type: boolean
+            example: true
       responses:
         '200':
           description: Detalles obtenidos correctamente.
@@ -1715,6 +1823,48 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+    put:
+      tags: [Detalles de Documento de Entrega]
+      summary: Corregir las observaciones de un equipo entregado
+      description: |
+        Sólo se corrigen las observaciones: cambiar el equipo o el documento
+        equivale a rehacer la entrega.
+
+        Ruta: `PUT /api/delivery_document_details/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateDeliveryDocumentDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationsRequest'
+      responses:
+        '200':
+          description: Detalle actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Documento de Entrega Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/DeliveryDocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentDetailNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
     delete:
       tags: [Detalles de Documento de Entrega]
       summary: Quitar un equipo de un documento de entrega
@@ -1752,6 +1902,642 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '404':
           $ref: '#/components/responses/DeliveryDocumentDetailNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /equipments/available:
+    get:
+      tags: [Equipos]
+      summary: Listar equipos disponibles para entregar
+      description: |
+        Devuelve los equipos **sin entrega activa**: los que nunca se han
+        entregado o cuya última entrega ya fue devuelta. Es la lista con la que
+        se arma un nuevo documento de entrega.
+
+        Un equipo se considera ocupado mientras exista un
+        `delivery_document_details` suyo sin su `return_document_details`.
+
+        Ruta: `GET /api/equipments/available` — protegida por el middleware `jwt.auth`.
+      operationId: listAvailableEquipments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: |
+            Filtra por tipo de equipo. Debe ser un valor del enum `EquipmentType`.
+          schema:
+            $ref: '#/components/schemas/EquipmentType'
+        - name: search
+          in: query
+          required: false
+          description: |
+            Busca coincidencias parciales en `name`, `model` o `serie`.
+          schema:
+            type: string
+            maxLength: 255
+            example: latitude
+      responses:
+        '200':
+          description: Equipos disponibles obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipos Disponibles Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EquipmentListItem'
+              example:
+                statusCode: 200
+                message: Equipos Disponibles Obtenidos Correctamente
+                data:
+                  - id: 2
+                    name: Mouse Dell
+                    brand: Dell
+                    registeredBy: Roberto Santizo
+                    original: Nuevo
+                    isAssigned: false
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/EquipmentFilterError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /equipments/{id}/history:
+    get:
+      tags: [Equipos]
+      summary: Historial de asignaciones de un equipo
+      description: |
+        Devuelve todas las entregas en las que se incluyó el equipo, de la más
+        reciente a la más antigua, con los datos de la devolución cuando ya se
+        registró. Sirve para saber quién ha tenido el equipo y desde cuándo.
+
+        Ruta: `GET /api/equipments/{id}/history` — protegida por el middleware `jwt.auth`.
+      operationId: showEquipmentHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Historial obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Historial del Equipo Obtenido Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Assignment'
+              example:
+                statusCode: 200
+                message: Historial del Equipo Obtenido Correctamente
+                data:
+                  - delivery_document_detail_id: 1
+                    delivery_document_id: 1
+                    delivery_date: 04-09-2026 10:09:33 AM
+                    location: Planta Tejar
+                    employee_id: 3
+                    employee_name: Roberto Santizo
+                    employee_department: Tecnología de la Información
+                    equipment_id: 1
+                    equipment_name: Laptop Dell Latitude
+                    equipment_brand: Dell
+                    equipment_model: Latitude 5440
+                    equipment_serie: 5CD1234XYZ
+                    equipment_type: laptop
+                    observations: Se entrega sin cargador
+                    returned: true
+                    return_document_id: 1
+                    return_date: 06-09-2026 09:15:02 AM
+                    return_observations: Regresa en buen estado
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EquipmentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /employees/{id}/equipments:
+    get:
+      tags: [Empleados]
+      summary: Equipos asignados a un empleado
+      description: |
+        Devuelve los equipos que el empleado tiene **en este momento**: los
+        detalles de sus entregas que todavía no tienen devolución. Un equipo
+        desaparece de esta lista en cuanto se registra su devolución.
+
+        Ruta: `GET /api/employees/{id}/equipments` — protegida por el middleware `jwt.auth`.
+      operationId: listEmployeeEquipments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Equipos asignados obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipos Asignados Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Assignment'
+              example:
+                statusCode: 200
+                message: Equipos Asignados Obtenidos Correctamente
+                data:
+                  - delivery_document_detail_id: 1
+                    delivery_document_id: 1
+                    delivery_date: 04-09-2026 10:09:33 AM
+                    location: Planta Tejar
+                    employee_id: 3
+                    employee_name: Roberto Santizo
+                    employee_department: Tecnología de la Información
+                    equipment_id: 1
+                    equipment_name: Laptop Dell Latitude
+                    equipment_brand: Dell
+                    equipment_model: Latitude 5440
+                    equipment_serie: 5CD1234XYZ
+                    equipment_type: laptop
+                    observations: Se entrega sin cargador
+                    returned: false
+                    return_document_id: null
+                    return_date: null
+                    return_observations: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EmployeeNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /delivery_documents/{id}/pending_items:
+    get:
+      tags: [Documentos de Entrega]
+      summary: Equipos pendientes de devolución de una entrega
+      description: |
+        Devuelve los detalles de la entrega que **todavía no se han devuelto**.
+        Es la lista con la que se arma una devolución parcial: cada `id` de esta
+        respuesta es el `delivery_document_detail_id` que se envía en los `items`
+        de `POST /api/return_documents`.
+
+        Ruta: `GET /api/delivery_documents/{id}/pending_items` — protegida por el
+        middleware `jwt.auth`.
+      operationId: listDeliveryDocumentPendingItems
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Equipos pendientes obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipos Pendientes de Devolución Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeliveryDocumentDetail'
+              example:
+                statusCode: 200
+                message: Equipos Pendientes de Devolución Obtenidos Correctamente
+                data:
+                  - id: 1
+                    delivery_document_id: 1
+                    equipment_id: 1
+                    equipment_name: Laptop Dell Latitude
+                    equipment_brand: Dell
+                    equipment_model: Latitude 5440
+                    equipment_serie: 5CD1234XYZ
+                    equipment_type: laptop
+                    is_used: Nuevo
+                    original: Original
+                    observations: Se entrega sin cargador
+                    returned: false
+                    return_document_id: null
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/DeliveryDocumentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /return_documents:
+    get:
+      tags: [Documentos de Devolución]
+      summary: Listar documentos de devolución
+      description: |
+        Devuelve las devoluciones registradas, de la más reciente a la más
+        antigua, con el documento de entrega del que provienen, el empleado (que
+        se lee a través de esa entrega) y el arreglo `items` con los equipos
+        devueltos.
+
+        Ruta: `GET /api/return_documents` — protegida por el middleware `jwt.auth`.
+      operationId: listReturnDocuments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: deliveryDocumentId
+          in: query
+          required: false
+          description: Filtra las devoluciones de un documento de entrega.
+          schema:
+            type: integer
+            example: 1
+        - name: employeeId
+          in: query
+          required: false
+          description: |
+            Filtra por el empleado del documento de entrega relacionado.
+          schema:
+            type: integer
+            example: 3
+      responses:
+        '200':
+          description: Devoluciones obtenidas correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Devolución de Documentos Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ReturnDocument'
+              example:
+                statusCode: 200
+                message: Devolución de Documentos Obtenidos Correctamente
+                data:
+                  - id: 1
+                    return_date: 06-09-2026 09:15:02 AM
+                    responsable_signature: signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
+                    administrador_signature: signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
+                    employee_id: 3
+                    employee_name: Roberto Santizo
+                    employee_department: Tecnología de la Información
+                    location: Planta Tejar
+                    observations: Devuelve únicamente el mouse
+                    delivery_document_id: 1
+                    delivery_document_status: parcial
+                    user_id: 1
+                    user_name: Administrador
+                    items:
+                      - id: 1
+                        return_document_id: 1
+                        delivery_document_detail_id: 2
+                        equipment_id: 2
+                        equipment_name: Mouse Dell
+                        equipment_brand: Dell
+                        equipment_model: MS116
+                        equipment_serie: MS1234XYZ
+                        equipment_type: mouse
+                        is_used: Nuevo
+                        original: Original
+                        observations: Regresa en buen estado
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ReturnDocumentFilterError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Documentos de Devolución]
+      summary: Crear un documento de devolución con sus equipos
+      description: |
+        Crea la devolución **y sus detalles en una sola petición**, dentro de una
+        transacción. La devolución puede ser **parcial**: se envían sólo los
+        equipos que regresan, y los demás siguen asignados al empleado.
+
+        Cada item apunta al detalle de la entrega original
+        (`delivery_document_detail_id`, que se obtiene de
+        `GET /api/delivery_documents/{id}/pending_items`): sin entrega no puede
+        haber devolución.
+
+        El cuerpo se envía como `multipart/form-data` porque incluye las dos
+        firmas como archivo:
+
+        ```
+        delivery_document_id=1
+        observations=Devuelve únicamente el mouse
+        responsable_signature=<archivo>
+        administrador_signature=<archivo>
+        items[0][delivery_document_detail_id]=2
+        items[0][observations]=Regresa en buen estado
+        ```
+
+        `user_id` se toma del token y `return_date` de la hora del servidor;
+        **no se aceptan en el cuerpo**. La creación **no devuelve el documento**:
+        `data` es `true`. Usa `GET /api/return_documents/{id}` para leerlo.
+
+        Ruta: `POST /api/return_documents` — protegida por el middleware `jwt.auth`.
+      operationId: createReturnDocument
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReturnDocumentRequest'
+            encoding:
+              responsable_signature:
+                contentType: image/png, image/jpeg
+              administrador_signature:
+                contentType: image/png, image/jpeg
+      responses:
+        '201':
+          description: Devolución creada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Devolución de Documento Creado Correctamente
+                      data:
+                        type: boolean
+                        example: true
+              example:
+                statusCode: 201
+                message: Devolución de Documento Creado Correctamente
+                data: true
+        '400':
+          $ref: '#/components/responses/SignatureUploadError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ReturnDocumentValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /return_documents/{id}:
+    get:
+      tags: [Documentos de Devolución]
+      summary: Obtener un documento de devolución
+      description: |
+        Devuelve la devolución indicada con su arreglo `items` y el estado en que
+        quedó la entrega relacionada (`delivery_document_status`).
+
+        Ruta: `GET /api/return_documents/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showReturnDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Devolución obtenida correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Devolución de Documento Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/ReturnDocument'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ReturnDocumentNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Documentos de Devolución]
+      summary: Corregir las observaciones de una devolución
+      description: |
+        De una devolución ya firmada **sólo se corrigen las observaciones**: las
+        firmas, la fecha y el documento de entrega relacionado quedan fijos. Para
+        cambiar los equipos devueltos se usan las rutas de
+        `/return_document_details`.
+
+        Ruta: `PUT /api/return_documents/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateReturnDocument
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationsRequest'
+      responses:
+        '200':
+          description: Devolución actualizada correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Devolución de Documento Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/ReturnDocument'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ReturnDocumentNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /return_document_details:
+    get:
+      tags: [Detalles de Documento de Devolución]
+      summary: Listar detalles de devolución
+      description: |
+        Devuelve los equipos devueltos con sus datos ya resueltos a través del
+        detalle de entrega del que provienen. Acepta el filtro opcional
+        `returnDocumentId`.
+
+        Ruta: `GET /api/return_document_details` — protegida por el middleware `jwt.auth`.
+      operationId: listReturnDocumentDetails
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: returnDocumentId
+          in: query
+          required: false
+          description: Filtra los equipos de una devolución concreta.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detalles obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Devolución de Documentos Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ReturnDocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Detalles de Documento de Devolución]
+      summary: Agregar un equipo a una devolución existente
+      description: |
+        Registra la devolución de un equipo más sobre una devolución ya creada.
+        Lo habitual es enviarlos todos desde `POST /api/return_documents`; esta
+        ruta sirve para completar un documento ya firmado.
+
+        Ruta: `POST /api/return_document_details` — protegida por el middleware `jwt.auth`.
+      operationId: createReturnDocumentDetail
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnDocumentDetailRequest'
+      responses:
+        '201':
+          description: Detalle creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Detalles de Devolución de Documentos Creados Correctamente
+                      data:
+                        $ref: '#/components/schemas/ReturnDocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ReturnDocumentDetailValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /return_document_details/{id}:
+    get:
+      tags: [Detalles de Documento de Devolución]
+      summary: Obtener un detalle de devolución
+      description: |
+        Ruta: `GET /api/return_document_details/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: showReturnDocumentDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Detalle obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Devolución de Documento Obtenidos Correctamente
+                      data:
+                        $ref: '#/components/schemas/ReturnDocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ReturnDocumentDetailNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Detalles de Documento de Devolución]
+      summary: Corregir las observaciones de un equipo devuelto
+      description: |
+        Sólo se corrigen las observaciones: mover el equipo a otra entrega o a
+        otra devolución equivale a rehacer el registro.
+
+        Ruta: `PUT /api/return_document_details/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: updateReturnDocumentDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObservationsRequest'
+      responses:
+        '200':
+          description: Detalle actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Detalles de Devolución de Documento Actualizados Correctamente
+                      data:
+                        $ref: '#/components/schemas/ReturnDocumentDetail'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ReturnDocumentDetailNotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1995,8 +2781,9 @@ components:
     EquipmentListItem:
       type: object
       description: |
-        Vista reducida que devuelve `GET /equipments`: sustituye `brand_id` y
-        `registerdBy` por los nombres relacionados.
+        Vista reducida que devuelven `GET /equipments` y
+        `GET /equipments/available`: sustituye `brand_id` y `registerdBy` por los
+        nombres relacionados y agrega si el equipo está asignado.
       properties:
         id:
           type: integer
@@ -2012,6 +2799,20 @@ components:
           type: string
           description: Nombre del usuario que registró el equipo.
           example: Roberto Santizo
+        original:
+          type: string
+          description: |
+            Procedencia del equipo. **Ojo**: el recurso traduce el booleano
+            `original` a `Nuevo` / `Usado`, no a `Original` / `Copia`.
+          enum: [Nuevo, Usado]
+          example: Nuevo
+        isAssigned:
+          type: boolean
+          description: |
+            `true` si el equipo tiene una entrega activa: su último detalle de
+            entrega todavía no tiene devolución. `GET /equipments/available`
+            devuelve únicamente equipos con `false`.
+          example: false
 
     EquipmentRequest:
       type: object
@@ -2261,6 +3062,22 @@ components:
           nullable: true
           description: Observaciones generales de la entrega.
           example: Entrega inicial de equipo
+        status:
+          type: string
+          description: |
+            Estado de la entrega, calculado sobre sus detalles: `pendiente` (no
+            se ha devuelto nada), `parcial` (se devolvió parte) o `devuelto`
+            (regresó todo).
+          enum: [pendiente, parcial, devuelto]
+          example: pendiente
+        items_count:
+          type: integer
+          description: Cantidad de equipos incluidos en la entrega.
+          example: 2
+        pending_items_count:
+          type: integer
+          description: Cantidad de equipos que aún no se devuelven.
+          example: 2
         items:
           type: array
           description: Equipos incluidos en la entrega.
@@ -2278,13 +3095,17 @@ components:
       properties:
         id:
           type: integer
-          description: Identificador autoincremental del detalle.
+          description: |
+            Identificador autoincremental del detalle. Es el valor que se envía
+            como `delivery_document_detail_id` al registrar la devolución.
+          example: 1
+        delivery_document_id:
+          type: integer
+          description: Documento de entrega al que pertenece el detalle.
           example: 1
         equipment_id:
           type: integer
-          description: |
-            Equipo entregado. **Ojo**: el recurso lo llena hoy con el `id` del
-            propio detalle, no con `delivery_document_details.equipment_id`.
+          description: Equipo entregado (`delivery_document_details.equipment_id`).
           example: 1
         equipment_name:
           type: string
@@ -2302,6 +3123,10 @@ components:
           type: string
           description: Número de serie del equipo.
           example: 5CD1234XYZ
+        equipment_type:
+          allOf:
+            - $ref: '#/components/schemas/EquipmentType'
+          description: Tipo del equipo (`equipments.type`).
         is_used:
           type: string
           description: Estado del equipo, ya traducido a `Usado` o `Nuevo`.
@@ -2317,6 +3142,17 @@ components:
           nullable: true
           description: Observaciones de este equipo en particular.
           example: Se entrega sin cargador
+        returned:
+          type: boolean
+          description: |
+            `true` cuando el detalle ya tiene su `return_document_details`.
+            Mientras sea `false` el equipo sigue asignado al empleado.
+          example: false
+        return_document_id:
+          type: integer
+          nullable: true
+          description: Devolución en la que regresó el equipo, si ya ocurrió.
+          example: null
 
     DeliveryDocumentRequest:
       type: object
@@ -2386,15 +3222,8 @@ components:
         Cuerpo aceptado por `POST /delivery_document_details`
         (`App\Http\Requests\CreateDeliveryDocumentDetailRequest`), para agregar un
         equipo a un documento ya existente.
-      required: [id, delivery_document_id, equipment_id]
+      required: [delivery_document_id, equipment_id]
       properties:
-        id:
-          type: integer
-          description: |
-            Regla `required`. **No se usa para nada**: `id` no es asignable en el
-            modelo y la tabla lo genera sola, pero la petición falla con `422` si
-            no se envía.
-          example: 1
         delivery_document_id:
           type: integer
           description: |
@@ -2457,6 +3286,316 @@ components:
           example:
             username: ['El campo de usuario es obligatorio.']
             password: ['El campo de contraseña es obligatorio.']
+
+    Assignment:
+      type: object
+      description: |
+        Asignación de un equipo, tal como la emite `AssignmentResource`: un
+        `delivery_document_details` con los datos de su entrega y, si ya
+        regresó, los de su devolución. La usan
+        `GET /equipments/{id}/history` y `GET /employees/{id}/equipments`.
+      properties:
+        delivery_document_detail_id:
+          type: integer
+          description: |
+            Detalle de la entrega. Es el valor que se envía como
+            `delivery_document_detail_id` al registrar la devolución.
+          example: 1
+        delivery_document_id:
+          type: integer
+          example: 1
+        delivery_date:
+          type: string
+          description: Fecha de la entrega, formateada con `d-m-Y h:m:s A`.
+          example: 04-09-2026 10:09:33 AM
+        location:
+          type: string
+          description: Planta de la entrega, ya traducida.
+          example: Planta Tejar
+        employee_id:
+          type: integer
+          example: 3
+        employee_name:
+          type: string
+          example: Roberto Santizo
+        employee_department:
+          type: string
+          example: Tecnología de la Información
+        equipment_id:
+          type: integer
+          example: 1
+        equipment_name:
+          type: string
+          example: Laptop Dell Latitude
+        equipment_brand:
+          type: string
+          example: Dell
+        equipment_model:
+          type: string
+          example: Latitude 5440
+        equipment_serie:
+          type: string
+          example: 5CD1234XYZ
+        equipment_type:
+          allOf:
+            - $ref: '#/components/schemas/EquipmentType'
+          description: Tipo del equipo, tal como está en `equipments.type`.
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones registradas al entregar el equipo.
+          example: Se entrega sin cargador
+        returned:
+          type: boolean
+          description: |
+            `true` cuando el detalle ya tiene su devolución registrada. Mientras
+            sea `false` el equipo sigue asignado al empleado.
+          example: false
+        return_document_id:
+          type: integer
+          nullable: true
+          example: null
+        return_date:
+          type: string
+          nullable: true
+          description: Fecha de la devolución, formateada con `d-m-Y h:m:s A`.
+          example: null
+        return_observations:
+          type: string
+          nullable: true
+          description: Observaciones registradas al devolver el equipo.
+          example: null
+
+    ReturnDocument:
+      type: object
+      description: |
+        Documento de devolución tal como lo emite `ReturnDocumentResource`. Los
+        datos del empleado y la planta se leen a través del documento de entrega
+        relacionado: la tabla `return_documents` no los guarda.
+      properties:
+        id:
+          type: integer
+          example: 1
+        return_date:
+          type: string
+          description: |
+            Fecha y hora de la devolución, formateada con `d-m-Y h:m:s A` (la
+            asigna el servidor).
+          example: 06-09-2026 09:15:02 AM
+        responsable_signature:
+          type: string
+          description: Ruta relativa de la firma del responsable en el disco `public`.
+          example: signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
+        administrador_signature:
+          type: string
+          description: Ruta relativa de la firma del administrador en el disco `public`.
+          example: signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
+        employee_id:
+          type: integer
+          description: Empleado de la entrega relacionada.
+          example: 3
+        employee_name:
+          type: string
+          example: Roberto Santizo
+        employee_department:
+          type: string
+          example: Tecnología de la Información
+        location:
+          type: string
+          description: Planta de la entrega relacionada, ya traducida.
+          example: Planta Tejar
+        observations:
+          type: string
+          nullable: true
+          example: Devuelve únicamente el mouse
+        delivery_document_id:
+          type: integer
+          example: 1
+        delivery_document_status:
+          type: string
+          description: |
+            Estado en que queda la entrega tras esta devolución: `pendiente`
+            (nada devuelto), `parcial` (falta equipo) o `devuelto` (todo
+            devuelto).
+          enum: [pendiente, parcial, devuelto]
+          example: parcial
+        user_id:
+          type: integer
+          description: Usuario que registró la devolución, tomado del token.
+          example: 1
+        user_name:
+          type: string
+          example: Administrador
+        items:
+          type: array
+          description: Equipos devueltos en este documento.
+          items:
+            $ref: '#/components/schemas/ReturnDocumentDetail'
+
+    ReturnDocumentDetail:
+      type: object
+      description: |
+        Equipo devuelto, tal como lo emite `ReturnDocumentDetailResource`. Los
+        datos del equipo se leen a través del detalle de entrega del que
+        proviene.
+      properties:
+        id:
+          type: integer
+          example: 1
+        return_document_id:
+          type: integer
+          example: 1
+        delivery_document_detail_id:
+          type: integer
+          description: Detalle de la entrega que se está devolviendo.
+          example: 2
+        equipment_id:
+          type: integer
+          example: 2
+        equipment_name:
+          type: string
+          example: Mouse Dell
+        equipment_brand:
+          type: string
+          example: Dell
+        equipment_model:
+          type: string
+          example: MS116
+        equipment_serie:
+          type: string
+          example: MS1234XYZ
+        equipment_type:
+          allOf:
+            - $ref: '#/components/schemas/EquipmentType'
+          description: Tipo del equipo devuelto.
+        is_used:
+          type: string
+          enum: [Usado, Nuevo]
+          example: Nuevo
+        original:
+          type: string
+          enum: [Original, Copia]
+          example: Original
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones del equipo al devolverlo.
+          example: Regresa en buen estado
+
+    ReturnDocumentRequest:
+      type: object
+      description: |
+        Cuerpo `multipart/form-data` aceptado por `POST /return_documents`
+        (`App\Http\Requests\CreateReturnDocumentRequest`). Los items se envían
+        con la notación de arreglo de formularios:
+        `items[0][delivery_document_detail_id]`, `items[0][observations]`, …
+
+        `user_id` y `return_date` los asigna el servidor y **no se aceptan aquí**.
+      required: [responsable_signature, administrador_signature, delivery_document_id, items]
+      properties:
+        responsable_signature:
+          type: string
+          format: binary
+          description: |
+            Firma del responsable. Reglas
+            `required|file|mimes:png,jpg,jpeg|max:2048` (2 MB).
+        administrador_signature:
+          type: string
+          format: binary
+          description: |
+            Firma del administrador. Reglas `required|mimes:png,jpg,jpeg|max:2048`
+            (2 MB).
+        delivery_document_id:
+          type: integer
+          description: |
+            Entrega que se está devolviendo. Reglas
+            `required|exists:delivery_documents,id`.
+          example: 1
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones generales de la devolución. Regla `nullable`.
+          example: Devuelve únicamente el mouse
+        items:
+          type: array
+          minItems: 1
+          description: |
+            Equipos que regresan. Reglas `required|array|min:1`. Para una
+            devolución parcial se envían sólo algunos de los detalles
+            pendientes.
+          items:
+            type: object
+            required: [delivery_document_detail_id]
+            properties:
+              delivery_document_detail_id:
+                type: integer
+                description: |
+                  Detalle de la entrega que regresa, obtenido de
+                  `GET /delivery_documents/{id}/pending_items`. Reglas
+                  `required|exists:delivery_document_details,id`.
+                example: 2
+              observations:
+                type: string
+                nullable: true
+                description: Observaciones de este equipo. Regla `nullable`.
+                example: Regresa en buen estado
+
+    ReturnDocumentDetailRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `POST /return_document_details`
+        (`App\Http\Requests\CreateReturnDocumentDetailRequest`), para agregar un
+        equipo a una devolución ya existente.
+      required: [return_document_id, delivery_document_detail_id]
+      properties:
+        return_document_id:
+          type: integer
+          description: |
+            Devolución a la que pertenece. Reglas
+            `required|exists:return_documents,id`.
+          example: 1
+        delivery_document_detail_id:
+          type: integer
+          description: |
+            Detalle de la entrega que regresa. Reglas
+            `required|exists:delivery_document_details,id`.
+          example: 2
+        observations:
+          type: string
+          nullable: true
+          description: Observaciones de este equipo. Regla `nullable`.
+          example: Regresa en buen estado
+
+    ObservationsRequest:
+      type: object
+      description: |
+        Cuerpo de las correcciones sobre documentos ya firmados
+        (`UpdateDeliveryDocumentDetailRequest`, `UpdateReturnDocumentRequest` y
+        `UpdateReturnDocumentDetailRequest`): sólo se aceptan las observaciones.
+      properties:
+        observations:
+          type: string
+          nullable: true
+          description: Reglas `nullable|string`.
+          example: Se corrige la observación original
+
+    DeliveryDocumentUpdateRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `PUT /delivery_documents/{id}`
+        (`App\Http\Requests\UpdateDeliveryDocumentRequest`). De un documento ya
+        firmado sólo se corrigen la planta y las observaciones.
+      required: [location]
+      properties:
+        location:
+          type: integer
+          description: Planta de la entrega. Reglas `required|integer`.
+          example: 1
+        observations:
+          type: string
+          nullable: true
+          description: Reglas `nullable|string`.
+          example: Se corrige la planta de la entrega
 
   parameters:
 
@@ -2717,8 +3856,6 @@ components:
     DeliveryDocumentDetailValidationError:
       description: |
         El cuerpo no pasó la validación de `CreateDeliveryDocumentDetailRequest`.
-        Este FormRequest no define `messages()`, así que los textos son los
-        predeterminados de Laravel.
       content:
         application/json:
           schema:
@@ -2727,17 +3864,16 @@ components:
             camposFaltantes:
               summary: No se enviaron los campos obligatorios
               value:
-                message: The id field is required. (and 2 more errors)
+                message: El documento de entrega es requerido
                 errors:
-                  id: ['The id field is required.']
-                  delivery_document_id: ['The delivery document id field is required.']
-                  equipment_id: ['The equipment id field is required.']
+                  delivery_document_id: ['El documento de entrega es requerido']
+                  equipment_id: ['El equipo es requerido']
             documentoInexistente:
               summary: delivery_document_id no corresponde a ningún documento
               value:
-                message: The selected delivery document id is invalid.
+                message: El documento de entrega seleccionado no existe
                 errors:
-                  delivery_document_id: ['The selected delivery document id is invalid.']
+                  delivery_document_id: ['El documento de entrega seleccionado no existe']
 
     SignatureUploadError:
       description: |
@@ -2811,3 +3947,135 @@ components:
             statusCode: 500
             message: Server Error
             data: null
+
+    EmployeeNotFound:
+      description: No existe un empleado con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Empleado no encontrado
+            data: null
+
+    ReturnDocumentNotFound:
+      description: No existe una devolución con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Devolución de Documento no encontrada
+            data: null
+
+    ReturnDocumentDetailNotFound:
+      description: No existe un detalle de devolución con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Detalles de Devolución de Documentos no encontrados
+            data: null
+
+    EquipmentFilterError:
+      description: |
+        Los filtros de `GET /equipments/available` no pasaron la validación de
+        `EquipmentAvailableRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            message: El tipo de equipo seleccionado no es válido.
+            errors:
+              type: ['El tipo de equipo seleccionado no es válido.']
+
+    DeliveryDocumentFilterError:
+      description: |
+        Los filtros de `GET /delivery_documents` no pasaron la validación de
+        `DeliveryDocumentIndexRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            estadoInvalido:
+              summary: status fuera de la lista permitida
+              value:
+                message: El estado debe ser pendiente, parcial, devuelto o activo
+                errors:
+                  status: ['El estado debe ser pendiente, parcial, devuelto o activo']
+            empleadoInexistente:
+              summary: employeeId no corresponde a ningún empleado
+              value:
+                message: El empleado seleccionado no existe
+                errors:
+                  employeeId: ['El empleado seleccionado no existe']
+
+    ReturnDocumentFilterError:
+      description: |
+        Los filtros de `GET /return_documents` no pasaron la validación de
+        `ReturnDocumentIndexRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            message: El documento de entrega seleccionado no existe
+            errors:
+              deliveryDocumentId: ['El documento de entrega seleccionado no existe']
+
+    ReturnDocumentValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CreateReturnDocumentRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            camposFaltantes:
+              summary: No se enviaron los campos obligatorios
+              value:
+                message: La firma del responsable es requerida
+                errors:
+                  responsable_signature: ['La firma del responsable es requerida']
+                  administrador_signature: ['La firma del administrador es requerida']
+                  delivery_document_id: ['El documento de entrega es requerido']
+                  items: ['Debe devolver al menos un equipo']
+            detalleInexistente:
+              summary: Un item apunta a un detalle de entrega que no existe
+              value:
+                message: El detalle de entrega seleccionado no existe
+                errors:
+                  items.0.delivery_document_detail_id: ['El detalle de entrega seleccionado no existe']
+
+    ReturnDocumentDetailValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CreateReturnDocumentDetailRequest`.
+        Este FormRequest no define `messages()`, así que los textos son los
+        predeterminados de Laravel.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            message: The return document id field is required. (and 1 more error)
+            errors:
+              return_document_id: ['The return document id field is required.']
+              delivery_document_detail_id: ['The delivery document detail id field is required.']
+
+    DeliveryDocumentUpdateValidationError:
+      description: |
+        El cuerpo no pasó la validación de `UpdateDeliveryDocumentRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            message: La planta es requerida
+            errors:
+              location: ['La planta es requerida']
