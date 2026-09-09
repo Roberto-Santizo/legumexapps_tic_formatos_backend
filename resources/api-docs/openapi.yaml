@@ -294,6 +294,249 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /users:
+    get:
+      tags: [Usuarios]
+      summary: Listar usuarios
+      description: |
+        Devuelve todos los usuarios registrados, ordenados por nombre. La
+        contraseña nunca se incluye en la respuesta (`UserResource`).
+
+        Ruta: `GET /api/users` — protegida por los middlewares `jwt.auth` + `admin`.
+
+        **Sólo un usuario con rol `admin` puede consultar el listado.** Cualquier
+        otro rol (incluido `adminagricola`) recibe `403 No autorizado`.
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usuarios obtenidos correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Usuarios Obtenidos Correctamente
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+              example:
+                statusCode: 200
+                message: Usuarios Obtenidos Correctamente
+                data:
+                  - id: 1
+                    name: Ana López
+                    username: alopez
+                    role: admin
+                  - id: 7
+                    name: Roberto Santizo
+                    username: rsantizo
+                    role: user
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    post:
+      tags: [Usuarios]
+      summary: Crear un usuario
+      description: |
+        Crea un usuario y devuelve sus datos básicos. Equivale a
+        `POST /api/register`, que se conserva por compatibilidad con el flujo de
+        autenticación.
+
+        Ruta: `POST /api/users` — protegida por los middlewares `jwt.auth` + `admin`.
+
+        **Sólo un usuario con rol `admin` puede crear usuarios.** Cualquier otro rol
+        (incluido `adminagricola`) recibe `403 No autorizado`.
+
+        La contraseña se almacena hasheada (cast `hashed` del modelo `User`) y nunca
+        se devuelve en la respuesta. El endpoint **no** emite un token: el usuario
+        creado debe iniciar sesión con `POST /api/login`.
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            examples:
+              default:
+                summary: Usuario estándar
+                value:
+                  name: Roberto Santizo
+                  username: rsantizo
+                  password: secret123
+                  password_confirmation: secret123
+                  role: user
+              administrador:
+                summary: Nuevo administrador
+                value:
+                  name: Ana López
+                  username: alopez
+                  password: secret123
+                  password_confirmation: secret123
+                  role: admin
+      responses:
+        '201':
+          description: Usuario creado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      statusCode:
+                        example: 201
+                      message:
+                        example: Usuario Creado Correctamente
+                      data:
+                        $ref: '#/components/schemas/User'
+              example:
+                statusCode: 201
+                message: Usuario Creado Correctamente
+                data:
+                  id: 7
+                  name: Roberto Santizo
+                  username: rsantizo
+                  role: user
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UserValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /users/{id}:
+    get:
+      tags: [Usuarios]
+      summary: Obtener un usuario
+      description: |
+        Devuelve el usuario indicado, sin la contraseña.
+
+        Ruta: `GET /api/users/{id}` — protegida por los middlewares `jwt.auth` + `admin`.
+      operationId: showUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Usuario obtenido correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Usuario Obtenido Correctamente
+                      data:
+                        $ref: '#/components/schemas/User'
+              example:
+                statusCode: 200
+                message: Usuario Obtenido Correctamente
+                data:
+                  id: 7
+                  name: Roberto Santizo
+                  username: rsantizo
+                  role: user
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Usuarios]
+      summary: Actualizar un usuario
+      description: |
+        Actualiza los datos del usuario indicado y devuelve el registro sin la
+        contraseña.
+
+        Ruta: `PUT /api/users/{id}` — protegida por los middlewares `jwt.auth` + `admin`.
+
+        `password` es **opcional**: si se omite (o se envía `null`), el usuario
+        conserva la contraseña que ya tenía. Si se envía, debe venir acompañada de
+        `password_confirmation` y se guarda hasheada.
+
+        `username` sigue siendo único, pero la validación ignora al propio usuario
+        editado, de modo que puede guardarse sin cambiarlo.
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            examples:
+              sinPassword:
+                summary: Cambiar nombre y rol conservando la contraseña
+                value:
+                  name: Roberto Santizo Pérez
+                  username: rsantizo
+                  role: adminagricola
+              conPassword:
+                summary: Restablecer la contraseña
+                value:
+                  name: Roberto Santizo
+                  username: rsantizo
+                  password: nuevaClave1
+                  password_confirmation: nuevaClave1
+                  role: user
+      responses:
+        '200':
+          description: Usuario actualizado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Usuario Actualizado Correctamente
+                      data:
+                        $ref: '#/components/schemas/User'
+              example:
+                statusCode: 200
+                message: Usuario Actualizado Correctamente
+                data:
+                  id: 7
+                  name: Roberto Santizo Pérez
+                  username: rsantizo
+                  role: adminagricola
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '422':
+          $ref: '#/components/responses/UserValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /brands:
     get:
       tags: [Marcas]
@@ -2735,6 +2978,94 @@ components:
           description: JWT firmado. Expira según `JWT_TTL` (60 minutos por defecto).
           example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0L2FwaS9sb2dpbiJ9.4Q6bR0m1kZ2v8pXsN3tYcE7fJ9wA1dLhV5uG0oKq
 
+    User:
+      type: object
+      description: |
+        Usuario tal y como lo devuelve `UserResource`. **Nunca incluye la
+        contraseña**, ni siquiera hasheada.
+      properties:
+        id:
+          type: integer
+          description: Identificador autoincremental del usuario.
+          example: 7
+        name:
+          type: string
+          description: Nombre completo del usuario.
+          example: Roberto Santizo
+        username:
+          type: string
+          description: Nombre de usuario para iniciar sesión. Único en `users.username`.
+          example: rsantizo
+        role:
+          $ref: '#/components/schemas/Role'
+
+    CreateUserRequest:
+      type: object
+      description: Cuerpo aceptado por `POST /users` (`CreateUserRequest`).
+      required: [name, username, password, password_confirmation, role]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nombre completo del usuario. Obligatorio.
+          example: Roberto Santizo
+        username:
+          type: string
+          maxLength: 255
+          description: Nombre de usuario para iniciar sesión. Obligatorio y único en `users.username`.
+          example: rsantizo
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: Contraseña en texto plano. Obligatoria, mínimo 8 caracteres. Se almacena hasheada.
+          example: secret123
+        password_confirmation:
+          type: string
+          format: password
+          description: Repetición exacta de `password`. Obligatoria (regla `confirmed`).
+          example: secret123
+        role:
+          $ref: '#/components/schemas/Role'
+
+    UpdateUserRequest:
+      type: object
+      description: |
+        Cuerpo aceptado por `PUT /users/{id}` (`UpdateUserRequest`). A diferencia
+        del alta, `password` es opcional: si se omite se conserva la contraseña
+        actual.
+      required: [name, username, role]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          description: Nombre completo del usuario. Obligatorio.
+          example: Roberto Santizo
+        username:
+          type: string
+          maxLength: 255
+          description: |
+            Nombre de usuario. Obligatorio y único en `users.username`, ignorando
+            al propio usuario editado.
+          example: rsantizo
+        password:
+          type: string
+          format: password
+          minLength: 8
+          nullable: true
+          description: |
+            Contraseña nueva en texto plano. **Opcional**: omítela o envíela como
+            `null` para conservar la actual. Si se envía, mínimo 8 caracteres y
+            debe coincidir con `password_confirmation`.
+          example: nuevaClave1
+        password_confirmation:
+          type: string
+          format: password
+          description: Repetición exacta de `password`. Obligatoria sólo si se envía `password`.
+          example: nuevaClave1
+        role:
+          $ref: '#/components/schemas/Role'
+
     Brand:
       type: object
       description: Marca almacenada en la tabla `brands`.
@@ -3735,6 +4066,50 @@ components:
                 message: El nombre no puede tener más de 255 caracteres.
                 errors:
                   name: ['El nombre no puede tener más de 255 caracteres.']
+
+    UserNotFound:
+      description: No existe un usuario con ese `id` (`NotFoundError`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: Usuario no encontrado
+            data: null
+
+    UserValidationError:
+      description: |
+        El cuerpo no pasó la validación de `CreateUserRequest` / `UpdateUserRequest`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            usernameDuplicado:
+              summary: El username ya existe
+              value:
+                message: El usuario ya se encuentra registrado.
+                errors:
+                  username: ['El usuario ya se encuentra registrado.']
+            rolInvalido:
+              summary: Rol fuera del catálogo permitido
+              value:
+                message: El rol seleccionado no es válido.
+                errors:
+                  role: ['El rol seleccionado no es válido.']
+            passwordCorta:
+              summary: La contraseña no llega a 8 caracteres
+              value:
+                message: La contraseña debe tener al menos 8 caracteres.
+                errors:
+                  password: ['La contraseña debe tener al menos 8 caracteres.']
+            passwordSinConfirmar:
+              summary: La confirmación no coincide
+              value:
+                message: La confirmación de contraseña no coincide.
+                errors:
+                  password: ['La confirmación de contraseña no coincide.']
 
     BrandNotFound:
       description: No existe una marca con ese `id` (`NotFoundError`).

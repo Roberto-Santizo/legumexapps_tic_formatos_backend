@@ -26,4 +26,17 @@ class User extends Authenticatable implements JWTSubject
             'role' => $this->role,
         ];
     }
+
+    /**
+     * El cast `hashed` hashea la contraseña al asignarla y respeta los valores
+     * que ya vienen hasheados (por ejemplo los de `AuthService::register()`).
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'password' => 'hashed',
+        ];
+    }
 }
