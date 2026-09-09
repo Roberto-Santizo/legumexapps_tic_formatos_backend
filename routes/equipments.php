@@ -10,3 +10,4 @@ Route::get('/equipments/available', [EquipmentController::class, 'available'])->
 Route::get('/equipments/{id}', [EquipmentController::class, 'show'])->middleware(['jwt.auth']);
 Route::get('/equipments/{id}/history', [EquipmentController::class, 'history'])->middleware(['jwt.auth']);
 Route::put('/equipments/{id}', [EquipmentController::class, 'update'])->middleware(['jwt.auth']);
+Route::delete('/equipments/{id}', [EquipmentController::class, 'delete'])->middleware(['jwt.auth']);

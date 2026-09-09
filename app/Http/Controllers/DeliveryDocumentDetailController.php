@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateDeliveryDocumentDetailRequest;
 use App\Http\Resources\DeliveryDocumentDetailResource;
 use App\Models\DeliveryDocumentDetail;
 use Illuminate\Http\Request;
+use App\Errors\NotAcceptable;
 
 class DeliveryDocumentDetailController extends Controller
 {
@@ -99,7 +100,16 @@ class DeliveryDocumentDetailController extends Controller
             return ResponseHandler::success(true, 'Detalles de Documento de Entrega Obtenido Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
+        
+        $delivery_document_details = $this->findDeliveryDocumentDetailOrFail($id);
+
+        if ($delivery_document_details->returnDetail) {
+            throw new NotAcceptable('No se puede quitar de la entrega un equipo que ya fue devuelto');
         }
+
+        $delivery_document_details->delete();
+        }
+        
     }
 
     /**

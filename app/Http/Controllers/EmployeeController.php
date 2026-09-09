@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\DeliveryDocumentDetail;
-use App\Models\Employee;
+use App\Errors\NotAcceptable;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeController extends Controller
 {
@@ -95,6 +97,27 @@ class EmployeeController extends Controller
             $data = AssignmentResource::collection($assignments);
 
             return ResponseHandler::success($data, 'Equipos Asignados Obtenidos Correctamente', 200);
+        } catch (\Throwable $th) {
+            return ResponseHandler::error($th);
+        }
+    }
+
+        public function delete(string $id)
+    {
+        try {
+            $employee = $this->findEmployeeOrFail($id);
+
+            $tieneEquipo = DeliveryDocumentDetail::query()
+                ->whereDoesntHave('returnDetail')
+                ->whereHas('delivery_documents', function (Builder $document) use ($employee) {
+                    $document->where('employee_id', $employee->id);
+                })
+                ->exists();
+
+            if ($tieneEquipo) {
+                throw new NotAcceptable('No se puede eliminar un empleado que tiene equipo asignado');
+            }
+            return ResponseHandler::success($employee, 'Empleado Eliminado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

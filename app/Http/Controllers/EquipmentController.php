@@ -10,6 +10,7 @@ use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EquipmentResource;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
+use App\Errors\NotAcceptable;
 
 class EquipmentController extends Controller
 {
@@ -124,9 +125,31 @@ class EquipmentController extends Controller
         try {
             $equipment = $this->findEquipmentOrFail($id);
 
-            $equipment->update($request->validated());
+            $estaAsignado = $equipment->deliveryDetail()->whereDoesntHave('returnDetail')->exists();
+            $cambiaIdentidad = $request->validated('serie') !== $equipment->serie
+                || $request->validated('type') !== $equipment->type;
 
+            if ($estaAsignado && $cambiaIdentidad) {
+                throw new NotAcceptable('No se puede cambiar la serie ni el tipo de un equipo que está asignado');
+            }
             return ResponseHandler::success($equipment, 'Equipo Actualizado Correctamente', 200);
+        } catch (\Throwable $th) {
+            return ResponseHandler::error($th);
+        }
+    }
+
+    public function delete(string $id)
+    {
+        try {
+            $equipment = $this->findEquipmentOrFail($id);
+
+            if ($equipment->deliveryDetail()->whereDoesntHave('returnDetail')->exists()) {
+                throw new NotAcceptable('No se puede dar de baja un equipo que está asignado');
+            }
+
+            $equipment->delete();
+
+            return ResponseHandler::success($equipment, 'Equipo Eliminado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

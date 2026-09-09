@@ -13,6 +13,8 @@ use App\Models\ReturnDocument;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Errors\NotAcceptable;
+use App\Models\DeliveryDocument;
 
 class ReturnDocumentController extends Controller
 {
@@ -73,6 +75,13 @@ class ReturnDocumentController extends Controller
             $data['return_date'] = Carbon::now();
             $data['user_id'] = auth()->user()->id;
 
+            $delivery = DeliveryDocument::with('details.returnDetail')->find($data['delivery_document_id']);
+
+            if ($delivery->status() === 'devuelto') {
+                throw new NotAcceptable('El documento de entrega ya fue devuelto por completo');
+            }
+
+
             $data['responsable_signature'] = $imageStorage->store($request->file('responsable_signature'));
             $data['administrador_signature'] = $imageStorage->store($request->file('administrador_signature'));
 
@@ -86,6 +95,7 @@ class ReturnDocumentController extends Controller
             return ResponseHandler::error($th);
         }
     }
+
 
     /**
      * Display the specified resource.

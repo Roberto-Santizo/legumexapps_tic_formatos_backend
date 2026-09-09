@@ -10,4 +10,10 @@ Route::middleware('jwt.auth')->group(function () {
     Route::get('/delivery_documents/{id}/pending_items', [DeliveryDocumentController::class, 'pendingItems']);
     Route::put('/delivery_documents/{id}', [DeliveryDocumentController::class, 'update']);
     Route::delete('/delivery_documents/{id}', [DeliveryDocumentController::class, 'delete']);
+
+    Route::middleware(['jwt.auth', 'admin'])->group(function () {
+        Route::post('/delivery_documents', [DeliveryDocumentController::class, 'store']);
+        Route::put('/delivery_documents/{id}', [DeliveryDocumentController::class, 'update']);
+        Route::delete('/delivery_documents/{id}', [DeliveryDocumentController::class, 'delete']);
+    });
 });
