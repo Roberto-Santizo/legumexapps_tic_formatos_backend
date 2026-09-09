@@ -1,13 +1,13 @@
 # Reglas de negocio — Asignación de equipos TIC
 
-Este documento es una **guía de implementación**: describe las reglas que debe
-cumplir el proceso de entrega y devolución de equipo, y trae el código propuesto
-para cada una. **Ninguna de estas reglas está implementada todavía**; los
-endpoints existen y funcionan (ver [`flujo.md`](flujo.md)), pero hoy sólo validan
-tipos, obligatoriedad y existencia de llaves foráneas.
+Este documento describe las reglas que debe cumplir el proceso de entrega y
+devolución de equipo, con el código de cada una. **Todas están implementadas y
+cubiertas por `tests/Feature/ReglasNegocioTest.php`** (ver [`flujo.md`](flujo.md)
+para el flujo de los endpoints).
 
-Quien implemente esto puede copiar los bloques de código, ajustarlos y cubrirlos
-con tests.
+Los bloques de código de abajo son la referencia de *qué* valida cada regla y
+*dónde* vive; el código real puede diferir en detalles (ver las notas de
+implementación al final de cada regla que cambió).
 
 ---
 
@@ -111,9 +111,25 @@ equipo dos veces. Para las reglas RN-01, RN-02 y RN-10:
 | RN-24 | No se elimina un empleado con equipo asignado | `EmployeeController` (baja) | 406 |
 | RN-25 | Un detalle de entrega no puede tener dos devoluciones | migración (índice único) | — |
 
-Ya implementadas hoy (no hay que rehacerlas): al menos un item por documento,
-firmas obligatorias `png/jpg/jpeg` ≤ 2 MB, existencia de empleado/equipo/
-documento, `delivery_date`/`return_date`/`user_id` asignados por el servidor.
+Además, desde antes: al menos un item por documento, firmas obligatorias
+`png/jpg/jpeg` ≤ 2 MB, existencia de empleado/equipo/documento,
+`delivery_date`/`return_date`/`user_id` asignados por el servidor.
+
+**Notas de implementación:**
+
+- **RN-02** aplica sólo a los tipos de `TIPOS_UNICOS` (mouse, teclado, laptop,
+  desktop, diadema, webcam). Los demás tipos (cable, adaptador, cargador…) no
+  tienen tope. La constante está en los dos FormRequests de entrega.
+- **RN-11** quedó como última defensa: RN-08 y RN-10 rechazan antes cada detalle
+  con `422`, así que el `406` del controller sólo se alcanza en una carrera entre
+  dos peticiones simultáneas.
+- **RN-12** no se implementó porque `return_date` la sigue poniendo el servidor.
+  Si algún día se acepta del cliente, el código de la sección RN-12 aplica.
+- **RN-04**: los Resources usan `Plant::tryFrom(...)?->label()` con un
+  `'Planta desconocida'` de respaldo, para no reventar con filas viejas que
+  guardaron una planta fuera del enum.
+- **RN-17**: se agregó `case PHONE = 'phone'` a `EquipmentType` y los teléfonos
+  admiten características.
 
 ---
 
@@ -943,12 +959,18 @@ ReglasEntregaTest`), siguiendo el estilo de `AssignmentFlowTest.php`:
 - Para las reglas con estado (RN-11, RN-14, RN-15): montar el escenario completo
   entrega → devolución antes de la aserción.
 
-## 8. Decisiones que faltan del negocio
+## 8. Decisiones del negocio
 
-1. RN-02: ¿el tope de "uno por tipo" aplica a todos los tipos o sólo a una lista?
-2. RN-04: ¿cuántas plantas existen además de Tejar y Parramos?
-3. RN-07: ¿quién puede emitir documentos: sólo `admin` o cualquier usuario del
-   área TIC?
-4. RN-17: ¿se agrega `phone` al enum `EquipmentType`?
+Resueltas al implementar (confirmar con el negocio si alguna no aplica):
+
+1. RN-02: el tope de "uno por tipo" aplica sólo a `TIPOS_UNICOS`, no a todos los
+   tipos.
+2. RN-04: el enum `Plant` tiene dos plantas, Tejar (`1`) y Parramos (`2`).
+3. RN-07: sólo `admin` emite, corrige y elimina documentos; las lecturas quedan
+   abiertas a cualquier usuario autenticado.
+4. RN-17: sí, se agregó `phone` al enum `EquipmentType`.
+
+Sigue pendiente:
+
 5. ¿Una entrega puede incluir equipo de dos plantas distintas, o la planta del
    documento debe coincidir con la del equipo? (hoy el equipo no guarda planta).

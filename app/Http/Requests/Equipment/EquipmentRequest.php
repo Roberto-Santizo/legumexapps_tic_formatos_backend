@@ -53,6 +53,7 @@ class EquipmentRequest extends FormRequest
             'serie.required' => 'El campo de serie es obligatorio.',
             'serie.string' => 'La serie debe ser una cadena de texto.',
             'serie.max' => 'La serie no puede tener más de 255 caracteres.',
+            'serie.unique' => 'Ya existe un equipo registrado con esa serie',
             'original.required' => 'El campo de original es obligatorio.',
             'original.boolean' => 'El campo de original debe ser verdadero o falso.',
             'is_used.required' => 'El campo de usado es obligatorio.',

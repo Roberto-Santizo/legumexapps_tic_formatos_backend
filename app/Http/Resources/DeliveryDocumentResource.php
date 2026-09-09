@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,7 +19,7 @@ class DeliveryDocumentResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'location' => $this->location == 1 ? 'Planta Tejar' : 'Planta Parramos',
+            'location' => Plant::tryFrom((int) $this->location)?->label() ?? 'Planta desconocida',
             'delivery_date' => $this->delivery_date->format('d-m-Y h:m:s A'),
             'responsable_signature' => $this->responsable_signature,
             'administrador_signature' => $this->administrador_signature,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Equipment\EquipmentAvailableRequest;
@@ -10,7 +11,6 @@ use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EquipmentResource;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
-use App\Errors\NotAcceptable;
 
 class EquipmentController extends Controller
 {
@@ -119,6 +119,8 @@ class EquipmentController extends Controller
 
     /**
      * Update the specified resource in storage.
+     *
+     * RN-22: no se cambia la serie ni el tipo de un equipo asignado.
      */
     public function update(EquipmentRequest $request, string $id)
     {
@@ -132,12 +134,18 @@ class EquipmentController extends Controller
             if ($estaAsignado && $cambiaIdentidad) {
                 throw new NotAcceptable('No se puede cambiar la serie ni el tipo de un equipo que está asignado');
             }
-            return ResponseHandler::success($equipment, 'Equipo Actualizado Correctamente', 200);
+
+            $equipment->update($request->validated());
+
+            return ResponseHandler::success($equipment->fresh(), 'Equipo Actualizado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
     }
 
+    /**
+     * RN-23: no se da de baja un equipo asignado.
+     */
     public function delete(string $id)
     {
         try {

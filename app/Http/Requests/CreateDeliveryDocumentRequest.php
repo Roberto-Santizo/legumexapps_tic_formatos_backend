@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\EquipmentType;
 use App\Enums\Plant;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
@@ -13,6 +14,20 @@ use Illuminate\Validation\Validator;
 
 class CreateDeliveryDocumentRequest extends FormRequest
 {
+    /**
+     * RN-02: tipos de los que un empleado sólo puede tener uno a la vez.
+     *
+     * @var array<int, EquipmentType>
+     */
+    private const TIPOS_UNICOS = [
+        EquipmentType::MOUSE,
+        EquipmentType::KEYBOARD,
+        EquipmentType::LAPTOP,
+        EquipmentType::DESKTOP,
+        EquipmentType::HEADSET,
+        EquipmentType::WEBCAM,
+    ];
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -37,7 +52,6 @@ class CreateDeliveryDocumentRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.equipment_id' => ['required', 'distinct', Rule::exists('equipments', 'id')->whereNull('deleted_at')],
             'items.*.observations' => ['nullable'],
-
         ];
     }
 
@@ -47,7 +61,15 @@ class CreateDeliveryDocumentRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'location.required' => 'La planta es requerida',
             'location.enum' => 'La planta seleccionada no es válida',
+            'responsable_signature.required' => 'La firma del responsable es requerida',
+            'administrador_signature.required' => 'La firma del administrador es requerida',
+            'employee_id.required' => 'El empleado es requerido',
+            'employee_id.exists' => 'El empleado seleccionado no existe',
+            'items.required' => 'Debe entregar al menos un equipo',
+            'items.min' => 'Debe entregar al menos un equipo',
+            'items.*.equipment_id.required' => 'Cada equipo entregado debe indicar el equipo',
             'items.*.equipment_id.distinct' => 'No se puede entregar el mismo equipo dos veces en el mismo documento',
             'items.*.equipment_id.exists' => 'El equipo seleccionado no existe o está dado de baja',
         ];
@@ -60,6 +82,8 @@ class CreateDeliveryDocumentRequest extends FormRequest
     {
         return [
             fn (Validator $validator) => $this->validarEquiposDisponibles($validator),
+            fn (Validator $validator) => $this->validarTiposRepetidos($validator),
+            fn (Validator $validator) => $this->validarFirmasDistintas($validator),
         ];
     }
 
@@ -125,7 +149,7 @@ class CreateDeliveryDocumentRequest extends FormRequest
         foreach ($items as $index => $item) {
             $type = $tiposPorEquipo[$item['equipment_id'] ?? null] ?? null;
 
-            if (! $type) {
+            if (! $type || ! $this->tieneTopeDeUno($type)) {
                 continue;
             }
 
@@ -151,6 +175,19 @@ class CreateDeliveryDocumentRequest extends FormRequest
         }
     }
 
+    /**
+     * RN-02: sólo los tipos de `TIPOS_UNICOS` están limitados a uno por empleado.
+     */
+    private function tieneTopeDeUno(string $type): bool
+    {
+        $equipmentType = EquipmentType::tryFrom($type);
+
+        return $equipmentType !== null && in_array($equipmentType, self::TIPOS_UNICOS, true);
+    }
+
+    /**
+     * RN-06: las dos firmas no pueden ser el mismo archivo.
+     */
     private function validarFirmasDistintas(Validator $validator): void
     {
         $responsable = $this->file('responsable_signature');

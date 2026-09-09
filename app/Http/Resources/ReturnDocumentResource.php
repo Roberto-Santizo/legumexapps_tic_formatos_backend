@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,7 +25,7 @@ class ReturnDocumentResource extends JsonResource
             'employee_id' => $delivery->employee->id,
             'employee_name' => $delivery->employee->name,
             'employee_department' => $delivery->employee->department->name,
-            'location' => $delivery->location == 1 ? 'Planta Tejar' : 'Planta Parramos',
+            'location' => Plant::tryFrom((int) $delivery->location)?->label() ?? 'Planta desconocida',
             'observations' => $this->observations,
             'delivery_document_id' => $this->delivery_document_id,
             'delivery_document_status' => $delivery->status(),

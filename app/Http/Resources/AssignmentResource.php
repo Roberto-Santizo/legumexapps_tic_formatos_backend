@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\Plant;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,7 +29,7 @@ class AssignmentResource extends JsonResource
             'delivery_document_detail_id' => $this->id,
             'delivery_document_id' => $delivery->id,
             'delivery_date' => $delivery->delivery_date->format('d-m-Y h:m:s A'),
-            'location' => $delivery->location == 1 ? 'Planta Tejar' : 'Planta Parramos',
+            'location' => Plant::tryFrom((int) $delivery->location)?->label() ?? 'Planta desconocida',
             'employee_id' => $delivery->employee->id,
             'employee_name' => $delivery->employee->name,
             'employee_department' => $delivery->employee->department->name,

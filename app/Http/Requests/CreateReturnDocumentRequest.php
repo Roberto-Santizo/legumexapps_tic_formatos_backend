@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DeliveryDocumentDetail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
-use App\Models\DeliveryDocumentDetail;
 
 class CreateReturnDocumentRequest extends FormRequest
 {
@@ -35,9 +35,9 @@ class CreateReturnDocumentRequest extends FormRequest
             'delivery_document_id' => ['required', 'exists:delivery_documents,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.delivery_document_detail_id' => [
-            'required',
-            'distinct',
-            'exists:delivery_document_details,id',
+                'required',
+                'distinct',
+                'exists:delivery_document_details,id',
             ],
             'items.*.observations' => ['nullable'],
         ];
@@ -61,6 +61,21 @@ class CreateReturnDocumentRequest extends FormRequest
         ];
     }
 
+    /**
+     * @return array<int, callable>
+     */
+    public function after(): array
+    {
+        return [
+            fn (Validator $validator) => $this->validarDetallesDeLaEntrega($validator),
+            fn (Validator $validator) => $this->validarDetallesNoDevueltos($validator),
+            fn (Validator $validator) => $this->validarFirmasDistintas($validator),
+        ];
+    }
+
+    /**
+     * RN-06: las dos firmas no pueden ser el mismo archivo.
+     */
     private function validarFirmasDistintas(Validator $validator): void
     {
         $responsable = $this->file('responsable_signature');
@@ -76,16 +91,6 @@ class CreateReturnDocumentRequest extends FormRequest
                 'La firma del administrador no puede ser la misma que la del responsable'
             );
         }
-    }
-    /**
-     * @return array<int, callable>
-     */
-    public function after(): array
-    {
-        return [
-            fn(Validator $validator) => $this->validarDetallesDeLaEntrega($validator),
-            fn(Validator $validator) => $this->validarDetallesNoDevueltos($validator),
-        ];
     }
 
     /**
@@ -114,10 +119,10 @@ class CreateReturnDocumentRequest extends FormRequest
             }
         }
     }
-    
+
     /**
-    * RN-10: el detalle no puede tener ya una devolución registrada.
-    */
+     * RN-10: el detalle no puede tener ya una devolución registrada.
+     */
     private function validarDetallesNoDevueltos(Validator $validator): void
     {
         $items = $this->input('items', []);

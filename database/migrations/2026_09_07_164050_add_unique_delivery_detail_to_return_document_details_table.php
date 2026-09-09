@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('return_document_details', function (Blueprint $table) {
-            //
+            $table->dropUnique('return_document_details_delivery_document_detail_id_unique');
         });
     }
 };

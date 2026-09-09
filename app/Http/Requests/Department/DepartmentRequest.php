@@ -25,6 +25,7 @@ class DepartmentRequest extends FormRequest
         return [
             'name.required' => 'El campo de nombre es obligatorio.',
             'name.max' => 'El nombre no puede tener más de 255 caracteres.',
+            'name.unique' => 'Ya existe un departamento con ese nombre',
         ];
     }
 }

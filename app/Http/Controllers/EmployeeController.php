@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Employee;
+use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Employee\EmployeeRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EmployeeResource;
 use App\Models\DeliveryDocumentDetail;
-use App\Errors\NotAcceptable;
-use Illuminate\Http\Request;
+use App\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeController extends Controller
@@ -26,18 +26,12 @@ class EmployeeController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(EmployeeRequest $request)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'code' => 'required',
-                'department_id' => ['required', 'exists:departments,id'],
-            ]);
+            $employee = Employee::create($request->validated());
 
-            Employee::create($data);
-
-            return ResponseHandler::success($data, 'Empleado Creado Correctamente', 201);
+            return ResponseHandler::success($employee, 'Empleado Creado Correctamente', 201);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }
@@ -54,18 +48,12 @@ class EmployeeController extends Controller
         }
     }
 
-    public function update(Request $request, string $id)
+    public function update(EmployeeRequest $request, string $id)
     {
         try {
-            $data = $request->validate([
-                'name' => 'required',
-                'code' => 'required',
-                'department_id' => ['required', 'exists:departments,id'],
-            ]);
-
             $employee = $this->findEmployeeOrFail($id);
 
-            $employee->update($data);
+            $employee->update($request->validated());
 
             return ResponseHandler::success($employee, 'Empleado Actualizado Correctamente', 200);
         } catch (\Throwable $th) {
@@ -102,7 +90,10 @@ class EmployeeController extends Controller
         }
     }
 
-        public function delete(string $id)
+    /**
+     * RN-24: no se elimina un empleado con equipo asignado.
+     */
+    public function delete(string $id)
     {
         try {
             $employee = $this->findEmployeeOrFail($id);
@@ -117,6 +108,9 @@ class EmployeeController extends Controller
             if ($tieneEquipo) {
                 throw new NotAcceptable('No se puede eliminar un empleado que tiene equipo asignado');
             }
+
+            $employee->delete();
+
             return ResponseHandler::success($employee, 'Empleado Eliminado Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);

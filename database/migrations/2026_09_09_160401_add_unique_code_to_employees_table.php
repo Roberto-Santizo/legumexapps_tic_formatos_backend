@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * RN-21: el código de empleado es único.
      */
     public function up(): void
     {
-        Schema::table('equipments', function (Blueprint $table) {
-            $table->unique('serie');
+        Schema::table('employees', function (Blueprint $table) {
+            $table->unique('code');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('equipments', function (Blueprint $table) {
-            $table->dropUnique('equipments_serie_unique');
+        Schema::table('employees', function (Blueprint $table) {
+            $table->dropUnique('employees_code_unique');
         });
     }
 };

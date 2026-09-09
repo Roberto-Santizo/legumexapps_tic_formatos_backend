@@ -75,8 +75,8 @@ it('recorre el flujo completo de entrega y devolución parcial', function () {
         'location' => 1,
         'employee_id' => $employee->id,
         'observations' => 'Entrega inicial de equipo',
-        'responsable_signature' => UploadedFile::fake()->image('responsable.png'),
-        'administrador_signature' => UploadedFile::fake()->image('administrador.png'),
+        'responsable_signature' => UploadedFile::fake()->image('responsable.png', 120, 60),
+        'administrador_signature' => UploadedFile::fake()->image('administrador.png', 160, 80),
         'items' => [
             ['equipment_id' => $laptop->id, 'observations' => 'Se entrega sin cargador'],
             ['equipment_id' => $mouse->id],
@@ -108,8 +108,8 @@ it('recorre el flujo completo de entrega y devolución parcial', function () {
     $this->post('/api/return_documents', [
         'delivery_document_id' => $deliveryDocumentId,
         'observations' => 'Devuelve únicamente el mouse',
-        'responsable_signature' => UploadedFile::fake()->image('responsable.png'),
-        'administrador_signature' => UploadedFile::fake()->image('administrador.png'),
+        'responsable_signature' => UploadedFile::fake()->image('responsable.png', 120, 60),
+        'administrador_signature' => UploadedFile::fake()->image('administrador.png', 160, 80),
         'items' => [
             ['delivery_document_detail_id' => $mouseDetail['id'], 'observations' => 'En buen estado'],
         ],
@@ -157,8 +157,8 @@ it('filtra los documentos de entrega por empleado y por estado', function () {
     $this->post('/api/delivery_documents', [
         'location' => 1,
         'employee_id' => $employee->id,
-        'responsable_signature' => UploadedFile::fake()->image('responsable.png'),
-        'administrador_signature' => UploadedFile::fake()->image('administrador.png'),
+        'responsable_signature' => UploadedFile::fake()->image('responsable.png', 120, 60),
+        'administrador_signature' => UploadedFile::fake()->image('administrador.png', 160, 80),
         'items' => [['equipment_id' => $laptop->id]],
     ], $headers)->assertStatus(201);
 

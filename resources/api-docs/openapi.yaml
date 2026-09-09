@@ -893,10 +893,52 @@ paths:
                   deleted_at: null
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '406':
+          $ref: '#/components/responses/NotAcceptableEquipmentUpdate'
         '404':
           $ref: '#/components/responses/EquipmentNotFound'
         '422':
           $ref: '#/components/responses/EquipmentValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Equipos]
+      summary: Dar de baja un equipo
+      description: |
+        Da de baja el equipo indicado. La tabla `equipments` usa *soft deletes*,
+        así que el registro conserva su historial y deja de aparecer en los
+        listados y en las validaciones de `exists`.
+
+        **RN-23:** si el equipo tiene una entrega sin devolver, la baja se rechaza
+        con `406`.
+
+        Ruta: `DELETE /api/equipments/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: deleteEquipment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Equipo dado de baja correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Equipo Eliminado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Equipment'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EquipmentNotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptableEquipmentDelete'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1209,7 +1251,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '422':
-          $ref: '#/components/responses/EmployeeValidationError'
+          $ref: '#/components/responses/EmployeeCodeValidationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1277,9 +1319,7 @@ paths:
         Actualiza el empleado indicado y devuelve el registro completo. Los tres
         campos son obligatorios en cada actualización.
 
-        **Cuidado:** este endpoint tampoco lanza `NotFoundError`. Si el `id` no
-        existe, la actualización se ejecuta sobre un modelo nulo y la respuesta es
-        un `500`, no un `404`.
+        Si el `id` no existe se responde `404` (`NotFoundError`).
 
         Ruta: `PUT /api/employees/{id}` — protegida por el middleware `jwt.auth`.
       operationId: updateEmployee
@@ -1326,8 +1366,49 @@ paths:
                   updated_at: '2026-09-02T17:30:00.000000Z'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EmployeeNotFound'
         '422':
-          $ref: '#/components/responses/EmployeeValidationError'
+          $ref: '#/components/responses/EmployeeCodeValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Empleados]
+      summary: Eliminar un empleado
+      description: |
+        Elimina el empleado indicado. El borrado es **definitivo**: la tabla
+        `employees` no usa *soft deletes*.
+
+        **RN-24:** si el empleado tiene equipo asignado sin devolver, el borrado
+        se rechaza con `406`.
+
+        Ruta: `DELETE /api/employees/{id}` — protegida por el middleware `jwt.auth`.
+      operationId: deleteEmployee
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Empleado eliminado correctamente.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      message:
+                        example: Empleado Eliminado Correctamente
+                      data:
+                        $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/EmployeeNotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptableEmployeeDelete'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1493,6 +1574,8 @@ paths:
           $ref: '#/components/responses/SignatureUploadError'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/DeliveryDocumentValidationError'
         '500':
@@ -1594,6 +1677,8 @@ paths:
                         $ref: '#/components/schemas/DeliveryDocument'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/DeliveryDocumentNotFound'
         '422':
@@ -1637,6 +1722,10 @@ paths:
                 data: true
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '406':
+          $ref: '#/components/responses/NotAcceptableDeliveryDocumentDelete'
         '404':
           $ref: '#/components/responses/DeliveryDocumentNotFound'
         '500':
@@ -1900,6 +1989,8 @@ paths:
                 data: true
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '406':
+          $ref: '#/components/responses/NotAcceptableDeliveryDocumentDetailDelete'
         '404':
           $ref: '#/components/responses/DeliveryDocumentDetailNotFound'
         '500':
@@ -2300,6 +2391,10 @@ paths:
           $ref: '#/components/responses/SignatureUploadError'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '406':
+          $ref: '#/components/responses/NotAcceptableReturnDocument'
         '422':
           $ref: '#/components/responses/ReturnDocumentValidationError'
         '500':
@@ -2377,6 +2472,8 @@ paths:
                         $ref: '#/components/schemas/ReturnDocument'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/ReturnDocumentNotFound'
         '422':
@@ -2715,6 +2812,7 @@ components:
         - laptop
         - desktop
         - printer
+        - phone
         - cable
         - adapter
         - other
@@ -4079,3 +4177,93 @@ components:
             message: La planta es requerida
             errors:
               location: ['La planta es requerida']
+
+    NotAcceptableDeliveryDocumentDelete:
+      description: |
+        RN-14: la entrega ya tiene devoluciones registradas, así que no se puede
+        eliminar (`NotAcceptable`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: No se puede eliminar una entrega que ya tiene devoluciones registradas
+            data: null
+
+    NotAcceptableDeliveryDocumentDetailDelete:
+      description: |
+        RN-15: el equipo ya fue devuelto, así que no se puede quitar de la
+        entrega (`NotAcceptable`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: No se puede quitar de la entrega un equipo que ya fue devuelto
+            data: null
+
+    NotAcceptableReturnDocument:
+      description: |
+        RN-11: la entrega ya fue devuelta por completo (`NotAcceptable`). Es la
+        última defensa: normalmente RN-10 rechaza antes cada detalle con un `422`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: El documento de entrega ya fue devuelto por completo
+            data: null
+
+    NotAcceptableEquipmentUpdate:
+      description: |
+        RN-22: el equipo está asignado y se intentó cambiar su serie o su tipo
+        (`NotAcceptable`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: No se puede cambiar la serie ni el tipo de un equipo que está asignado
+            data: null
+
+    NotAcceptableEquipmentDelete:
+      description: |
+        RN-23: el equipo está asignado y no se puede dar de baja (`NotAcceptable`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: No se puede dar de baja un equipo que está asignado
+            data: null
+
+    NotAcceptableEmployeeDelete:
+      description: |
+        RN-24: el empleado tiene equipo asignado y no se puede eliminar
+        (`NotAcceptable`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 406
+            message: No se puede eliminar un empleado que tiene equipo asignado
+            data: null
+
+    EmployeeCodeValidationError:
+      description: |
+        RN-21: el cuerpo no pasó la validación de `EmployeeRequest`. El código de
+        empleado es único.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          example:
+            message: Ya existe un empleado con ese código
+            errors:
+              code: ['Ya existe un empleado con ese código']

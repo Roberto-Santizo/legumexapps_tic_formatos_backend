@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\CreateDeliveryDocumentRequest as EnumsCreateDeliveryDocumentRequest;
+use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateDeliveryDocumentRequest;
@@ -15,8 +15,6 @@ use App\Models\DeliveryDocument;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Errors\NotAcceptable;
-use GuzzleHttp\Promise\Create;
 
 class DeliveryDocumentController extends Controller
 {
@@ -138,16 +136,12 @@ class DeliveryDocumentController extends Controller
         }
     }
 
+    /**
+     * RN-14: una entrega con devoluciones registradas no se puede eliminar.
+     */
     public function delete(string $id)
     {
         try {
-            $delivery_documents = $this->findDeliveryDocumentOrFail($id);
-            $delivery_documents->delete();
-
-            return ResponseHandler::success(true, 'Documento de Entrega  Eliminados Correctamente', 200);
-        } catch (\Throwable $th) {
-            return ResponseHandler::error($th);
-
             $delivery_documents = $this->findDeliveryDocumentOrFail($id);
 
             if ($delivery_documents->return_documents()->exists()) {
@@ -155,6 +149,10 @@ class DeliveryDocumentController extends Controller
             }
 
             $delivery_documents->delete();
+
+            return ResponseHandler::success(true, 'Documento de Entrega  Eliminados Correctamente', 200);
+        } catch (\Throwable $th) {
+            return ResponseHandler::error($th);
         }
     }
 
@@ -163,7 +161,7 @@ class DeliveryDocumentController extends Controller
      */
     private function applyStatusFilter(Builder $query, string $status): void
     {
-        $withPending = fn(Builder $document) => $document->whereHas('details', function (Builder $detail) {
+        $withPending = fn (Builder $document) => $document->whereHas('details', function (Builder $detail) {
             $detail->whereDoesntHave('returnDetail');
         });
 

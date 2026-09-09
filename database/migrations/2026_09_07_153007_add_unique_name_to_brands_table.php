@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('brands', function (Blueprint $table) {
-            $table->unique('name');
+            $table->dropUnique('brands_name_unique');
         });
     }
 };

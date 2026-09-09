@@ -140,7 +140,7 @@ Before relying on a package's API, confirm its installed version:
 
 API REST en Laravel 13 / PHP 8.5 con autenticación JWT (`tymon/jwt-auth`) y PostgreSQL. Es sólo backend: el único frontend es `welcome.blade.php` y el Swagger UI. Mensajes de API, comentarios y documentación van en español.
 
-Dominio: catálogos (`brands`, `departments`, `employees`, `equipments`, `caracteristics`) y los formatos de **entrega** (`delivery_documents` + `delivery_document_details`) y **devolución** (`return_documents` + `return_document_details`) de equipo, firmados con imágenes. El flujo completo está en `flujo.md`; las reglas de negocio **pendientes de implementar**, con el código propuesto, en `reglas.md`.
+Dominio: catálogos (`brands`, `departments`, `employees`, `equipments`, `caracteristics`) y los formatos de **entrega** (`delivery_documents` + `delivery_document_details`) y **devolución** (`return_documents` + `return_document_details`) de equipo, firmados con imágenes. El flujo completo está en `flujo.md`; las reglas de negocio (RN-01…RN-25), ya implementadas, en `reglas.md`.
 
 ## Comandos
 
@@ -155,21 +155,21 @@ php artisan storage:link            # necesario para servir las firmas
 docker compose up -d                # app php-fpm + nginx + queue + scheduler + postgres
 ```
 
-Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta. La suite completa pasa (52/52).
+Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta y `ReglasNegocioTest` una regla de negocio por test. La suite completa pasa (80/80).
 
 ## Arquitectura
 
 **Rutas.** `routes/api.php` sólo hace `require` de un archivo por recurso (`auth.php`, `brands.php`, `departments.php`, `employees.php`, `equipments.php`, `caracteristics.php`, `delivery_documents.php`, `delivery_document_details.php`, `return_documents.php`, `return_document_details.php`). El prefijo `/api` lo añade `bootstrap/app.php`; no lo repitas en los archivos de rutas. Al añadir un recurso, crea su archivo y encadénalo desde `api.php`. Los archivos nuevos usan `Route::middleware('jwt.auth')->group(...)`; los viejos encadenan `->middleware(['jwt.auth'])` ruta por ruta. Todas las rutas de negocio piden `jwt.auth`. `/equipments/available` se declara **antes** de `/equipments/{id}` o el `{id}` se la come.
 
-**Middleware.** `jwt.auth` viene de tymon; los alias `admin` y `administrate_agricola` se registran en `bootstrap/app.php` y lanzan `UnauthorizedError`. Hoy ninguna ruta de documentos exige `admin` (ver RN-07 en `reglas.md`).
+**Middleware.** `jwt.auth` viene de tymon; los alias `admin` y `administrate_agricola` se registran en `bootstrap/app.php` y lanzan `UnauthorizedError`. RN-07: `store`/`update`/`delete` de `delivery_documents` y `return_documents` exigen `admin`; las lecturas sólo `jwt.auth`.
 
 **Respuestas y errores.** Todo pasa por `App\Helpers\ResponseHandler`, que envuelve en `{statusCode, message, data}`. Los errores de dominio son subclases de `App\Errors\ApiException` (`NotFoundError`, `BadRequestError`, `UnauthorizedError`, `NotAcceptable`) con su `getStatusCode()`; `bootstrap/app.php` las renderiza globalmente, pero los controllers además envuelven en `try/catch` y devuelven `ResponseHandler::error($th)`. Sigue ese patrón; no devuelvas `response()->json()` a pelo.
 
-**Controllers.** `index/store/show/update`, más `delete` (verbo propio, no `destroy`) en `DeliveryDocumentController` y `DeliveryDocumentDetailController`; los de devolución no borran. Consultas de proceso: `EquipmentController@available` y `@history`, `EmployeeController@equipments`, `DeliveryDocumentController@pendingItems`. Buscan con `Model::find()` y lanzan `NotFoundError` desde un helper privado `find<X>OrFail()`; los de documentos cargan ahí mismo las relaciones de la constante `RELATIONS` de la clase. `BrandController`/`DepartmentController` son el patrón de referencia: FormRequest con `messages()` en español. `EmployeeController` todavía valida inline con `$request->validate()`. Para código nuevo usa FormRequest.
+**Controllers.** `index/store/show/update`, más `delete` (verbo propio, no `destroy`) en `DeliveryDocumentController` y `DeliveryDocumentDetailController`; los de devolución no borran. Consultas de proceso: `EquipmentController@available` y `@history`, `EmployeeController@equipments`, `DeliveryDocumentController@pendingItems`. Buscan con `Model::find()` y lanzan `NotFoundError` desde un helper privado `find<X>OrFail()`; los de documentos cargan ahí mismo las relaciones de la constante `RELATIONS` de la clase. `BrandController`/`DepartmentController` son el patrón de referencia: FormRequest con `messages()` en español. Todos usan FormRequest.
 
 **FormRequests.** Los de catálogos viven en `app/Http/Requests/<Recurso>/`; los de documentos están sueltos en `app/Http/Requests/` como `Create<X>Request` / `Update<X>Request` (los `Update*` de documentos firmados sólo aceptan observaciones, y el de la entrega además `location`). Los filtros de listado también son FormRequest (`DeliveryDocumentIndexRequest`, `ReturnDocumentIndexRequest`, `EquipmentAvailableRequest`); los de detalles siguen leyendo `$request->query()`. Al tocar un recurso, sigue la ubicación que ya tenga.
 
-**Resources.** `app/Http/Resources/` transforma las salidas de employees, equipments, los cuatro recursos de documentos y `AssignmentResource` (un `DeliveryDocumentDetail` con su entrega y su devolución; la usan `/equipments/{id}/history` y `/employees/{id}/equipments`). Formatean para el cliente (fechas `d-m-Y h:m:s A`, `original` → `Nuevo`/`Usado`, `location` 1 → `Planta Tejar` y cualquier otro valor → `Planta Parramos`). Los catálogos simples devuelven el modelo directo.
+**Resources.** `app/Http/Resources/` transforma las salidas de employees, equipments, los cuatro recursos de documentos y `AssignmentResource` (un `DeliveryDocumentDetail` con su entrega y su devolución; la usan `/equipments/{id}/history` y `/employees/{id}/equipments`). Formatean para el cliente (fechas `d-m-Y h:m:s A`, `original` → `Nuevo`/`Usado`, `location` vía `Plant::tryFrom()->label()`). Los catálogos simples devuelven el modelo directo.
 
 **Servicios.** Auth (`AuthServiceInterface` → `AuthService`, en `App\Providers\Auth\AuthProvider`) y Storage (`ImageStorageServiceInterface` → `ImageStorageService`, en `App\Providers\Storage\StorageProvider`); ambos providers están en `bootstrap/providers.php`. Se inyectan como parámetro del método del controller.
 
@@ -181,15 +181,15 @@ Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `Refres
 
 ## Trampas conocidas
 
-- El enum `EquipmentType` vive en `app/Enums/EquipmentType.php` (antes `EquipmentEnum.php`, que rompía el autoload PSR-4). `EquipmentRequest` lo valida con `Rule::enum()`. No tiene caso `phone` aunque el proceso contempla teléfonos.
+- El enum `EquipmentType` vive en `app/Enums/EquipmentType.php` (antes `EquipmentEnum.php`, que rompía el autoload PSR-4). `EquipmentRequest` lo valida con `Rule::enum()`. Incluye `phone` (RN-17).
 - La tabla de `Equipment` es `equipments` y la columna del usuario que registra es `registerdBy` (así está en la migración y en el modelo).
 - `DeliveryDocumentDetail::delivery_documents()` es un `belongsTo` con nombre en plural: **hay que pasarle la FK a mano** (`'delivery_document_id'`), si no Laravel deduce `delivery_documents_id` y revienta la consulta. Misma precaución al añadir relaciones con nombres en plural.
-- `is_used` es columna real (`boolean` con `default(false)`), está en el `#[Fillable]` de `Equipment` y `EquipmentRequest` la exige. Estuvo comentada en la migración de creación mientras la BD sí la tenía `NOT NULL`, lo que rompía el `INSERT`; `2026_09_09_142613_add_is_used_to_equipments_table` la añade con guarda `Schema::hasColumn` a las BD que quedaron sin ella. La tabla trae `softDeletes()`.
+- `is_used` es columna real (`boolean` con `default(false)`), está en el `#[Fillable]` de `Equipment` y `EquipmentRequest` la exige. Estuvo comentada en la migración de creación mientras la BD sí la tenía `NOT NULL`, lo que rompía el `INSERT`; `2026_09_09_142613_add_is_used_to_equipments_table` la añade con guarda `Schema::hasColumn` a las BD que quedaron sin ella. La tabla trae `softDeletes()` y el modelo usa el trait `SoftDeletes` (RN-05), así que `Rule::exists` sobre `equipments` debe llevar `->whereNull('deleted_at')`.
 - `app/Http/Requests/Department.php` es una copia perdida de la clase `App\Models\Department` (namespace que no corresponde a su ruta, no se autocarga). No la edites; el modelo bueno es `app/Models/Department.php`.
 - `return_documents` no tiene columna de empleado ni de planta: `ReturnDocumentResource` los lee vía `delivery_document`.
 - El spec OpenAPI se mantiene a mano en `resources/api-docs/openapi.yaml` y se sirve en `/api/documentation`; cubre las 25 rutas. Actualízalo al cambiar rutas, payloads o mensajes (valídalo con `Symfony\Component\Yaml\Yaml::parseFile`).
 - `InitialUserSeeder` crea el admin desde `config('app.initial_admin')` (`ADMIN_*` en `.env`) y es idempotente: no pisa contraseñas ya cambiadas.
-- **No hay validación de negocio todavía**: un equipo ya asignado se puede volver a entregar, un mismo detalle se puede devolver dos veces, etc. Antes de "arreglarlo" sobre la marcha, lee `reglas.md`: cada regla trae su código propuesto y su ubicación.
+- Las reglas de negocio viven en los `after()` de los FormRequests (422) y en los controllers como `NotAcceptable` (406). Antes de tocar una validación de entrega/devolución lee `reglas.md`: cada regla dice qué valida y dónde. Ojo con el patrón que ya falló una vez: un método privado `validar*()` escrito pero **no listado en `after()`** no se ejecuta, y el código puesto después de un `return` dentro de un `catch` es inalcanzable.
 
 ## Docker y despliegue
 

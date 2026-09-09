@@ -13,6 +13,7 @@ enum EquipmentType: string
     case LAPTOP = 'laptop';
     case DESKTOP = 'desktop';
     case PRINTER = 'printer';
+    case PHONE = 'phone';
     case CABLE = 'cable';
     case ADAPTER = 'adapter';
     case OTHER = 'other';

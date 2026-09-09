@@ -2,14 +2,27 @@
 
 namespace App\Http\Requests\Caracteristic;
 
-use Illuminate\Foundation\Http\FormRequest;
 use App\Enums\EquipmentType;
 use App\Models\Equipment;
-use Illuminate\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class CaracteristicRequest extends FormRequest
 {
+    /**
+     * RN-17: tipos de equipo que aceptan especificaciones.
+     *
+     * @var array<int, string>
+     */
+    private const TIPOS_CON_CARACTERISTICAS = [
+        EquipmentType::LAPTOP->value,
+        EquipmentType::DESKTOP->value,
+        EquipmentType::PRINTER->value,
+        EquipmentType::MONITOR->value,
+        EquipmentType::PHONE->value,
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -49,21 +62,23 @@ class CaracteristicRequest extends FormRequest
             'equipment_id.required' => 'El campo de equipo es obligatorio.',
             'equipment_id.integer' => 'El equipo debe ser un identificador numérico.',
             'equipment_id.exists' => 'El equipo seleccionado no existe.',
+            'name.unique' => 'El equipo ya tiene una característica con ese nombre',
         ];
     }
 
     /**
-     * Tipos de equipo que aceptan especificaciones.
-     *
-     * @var array<int, string>
+     * @return array<int, callable>
      */
-    private const TIPOS_CON_CARACTERISTICAS = [
-        EquipmentType::LAPTOP->value,
-        EquipmentType::DESKTOP->value,
-        EquipmentType::PRINTER->value,
-        EquipmentType::MONITOR->value,
-    ];
+    public function after(): array
+    {
+        return [
+            fn (Validator $validator) => $this->validarTipoDeEquipo($validator),
+        ];
+    }
 
+    /**
+     * RN-17: no todos los tipos de equipo admiten especificaciones.
+     */
     private function validarTipoDeEquipo(Validator $validator): void
     {
         $equipment = Equipment::find($this->input('equipment_id'));
