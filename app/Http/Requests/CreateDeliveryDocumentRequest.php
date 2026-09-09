@@ -1,18 +1,15 @@
 <?php
 
 namespace App\Http\Requests;
-namespace App\Enums;
 
-use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Validator;
+use App\Enums\Plant;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
-use App\Enums\Plant;
-
-
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class CreateDeliveryDocumentRequest extends FormRequest
 {
@@ -53,7 +50,7 @@ class CreateDeliveryDocumentRequest extends FormRequest
             'location.enum' => 'La planta seleccionada no es válida',
             'items.*.equipment_id.distinct' => 'No se puede entregar el mismo equipo dos veces en el mismo documento',
             'items.*.equipment_id.exists' => 'El equipo seleccionado no existe o está dado de baja',
-            ];
+        ];
     }
 
     /**
@@ -62,7 +59,7 @@ class CreateDeliveryDocumentRequest extends FormRequest
     public function after(): array
     {
         return [
-            fn(Validator $validator) => $this->validarEquiposDisponibles($validator),
+            fn (Validator $validator) => $this->validarEquiposDisponibles($validator),
         ];
     }
 
@@ -94,7 +91,6 @@ class CreateDeliveryDocumentRequest extends FormRequest
             }
         }
     }
-
 
     /**
      * RN-02: un empleado no puede terminar con dos equipos del mismo tipo.

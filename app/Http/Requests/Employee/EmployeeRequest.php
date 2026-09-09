@@ -4,6 +4,7 @@ namespace App\Http\Requests\Employee;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class EmployeeRequest extends FormRequest
 {
@@ -28,6 +29,7 @@ class EmployeeRequest extends FormRequest
             'department_id' => ['required', 'exists:departments,id'],
         ];
     }
+
     public function messages(): array
     {
         return [

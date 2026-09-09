@@ -1,11 +1,10 @@
 <?php
 
 namespace App\Http\Requests;
-namespace App\Enums;
 
+use App\Enums\Plant;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use App\Enums\Plant;
 use Illuminate\Validation\Rule;
 
 class UpdateDeliveryDocumentRequest extends FormRequest
@@ -43,5 +42,4 @@ class UpdateDeliveryDocumentRequest extends FormRequest
             'location.integer' => 'La planta debe ser un valor numérico',
         ];
     }
-
 }

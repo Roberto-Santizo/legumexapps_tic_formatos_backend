@@ -7,8 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-
-#[Fillable(['name', 'brand_id', 'original',  'model', 'serie', 'registerdBy', 'type'])]
+#[Fillable(['name', 'brand_id', 'original', 'is_used', 'model', 'serie', 'registerdBy', 'type'])]
 class Equipment extends Model
 {
     protected $table = 'equipments';
@@ -59,5 +58,6 @@ class Equipment extends Model
             $detail->whereDoesntHave('returnDetail');
         });
     }
+
     use SoftDeletes;
 }

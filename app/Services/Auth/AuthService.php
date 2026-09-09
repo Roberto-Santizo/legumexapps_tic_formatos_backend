@@ -35,10 +35,10 @@ class AuthService implements AuthServiceInterface
     public function register(array $data): User
     {
         return User::create([
-            'name' => $data['Administrador'],
-            'username' => $data['admin'],
-            'password' => Hash::make($data['admin123']),
-            'role' => $data['admin'],
+            'name' => $data['name'],
+            'username' => $data['username'],
+            'password' => Hash::make($data['password']),
+            'role' => $data['role'],
         ]);
     }
 }

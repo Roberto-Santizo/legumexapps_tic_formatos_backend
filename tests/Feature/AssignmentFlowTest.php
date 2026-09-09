@@ -16,7 +16,7 @@ uses(RefreshDatabase::class);
  */
 function tokenDeAsignaciones(): string
 {
-    UserFactory::new()->create(['username' => 'asignaciones']);
+    UserFactory::new()->admin()->create(['username' => 'asignaciones']);
 
     return test()->postJson('/api/login', [
         'username' => 'asignaciones',

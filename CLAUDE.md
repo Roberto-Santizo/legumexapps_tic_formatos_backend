@@ -155,7 +155,7 @@ php artisan storage:link            # necesario para servir las firmas
 docker compose up -d                # app php-fpm + nginx + queue + scheduler + postgres
 ```
 
-Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta. Ojo: `AuthRegisterTest` tiene 2 tests en rojo desde antes (500 al crear usuario como admin).
+Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta. La suite completa pasa (52/52).
 
 ## Arquitectura
 
@@ -184,7 +184,7 @@ Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `Refres
 - El enum `EquipmentType` vive en `app/Enums/EquipmentType.php` (antes `EquipmentEnum.php`, que rompía el autoload PSR-4). `EquipmentRequest` lo valida con `Rule::enum()`. No tiene caso `phone` aunque el proceso contempla teléfonos.
 - La tabla de `Equipment` es `equipments` y la columna del usuario que registra es `registerdBy` (así está en la migración y en el modelo).
 - `DeliveryDocumentDetail::delivery_documents()` es un `belongsTo` con nombre en plural: **hay que pasarle la FK a mano** (`'delivery_document_id'`), si no Laravel deduce `delivery_documents_id` y revienta la consulta. Misma precaución al añadir relaciones con nombres en plural.
-- `is_used` está comentado en la migración de `equipments` pero los Resources de detalle lo leen (siempre cae en `Nuevo`) y `EquipmentRequest` lo exige. La tabla trae `softDeletes()` y el modelo `Equipment` no usa el trait `SoftDeletes`.
+- `is_used` es columna real (`boolean` con `default(false)`), está en el `#[Fillable]` de `Equipment` y `EquipmentRequest` la exige. Estuvo comentada en la migración de creación mientras la BD sí la tenía `NOT NULL`, lo que rompía el `INSERT`; `2026_09_09_142613_add_is_used_to_equipments_table` la añade con guarda `Schema::hasColumn` a las BD que quedaron sin ella. La tabla trae `softDeletes()`.
 - `app/Http/Requests/Department.php` es una copia perdida de la clase `App\Models\Department` (namespace que no corresponde a su ruta, no se autocarga). No la edites; el modelo bueno es `app/Models/Department.php`.
 - `return_documents` no tiene columna de empleado ni de planta: `ReturnDocumentResource` los lee vía `delivery_document`.
 - El spec OpenAPI se mantiene a mano en `resources/api-docs/openapi.yaml` y se sirve en `/api/documentation`; cubre las 25 rutas. Actualízalo al cambiar rutas, payloads o mensajes (valídalo con `Symfony\Component\Yaml\Yaml::parseFile`).
