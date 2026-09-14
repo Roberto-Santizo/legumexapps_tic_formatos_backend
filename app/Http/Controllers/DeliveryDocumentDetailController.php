@@ -8,6 +8,7 @@ use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateDeliveryDocumentDetailRequest;
 use App\Http\Requests\UpdateDeliveryDocumentDetailRequest;
 use App\Http\Resources\DeliveryDocumentDetailResource;
+use App\Http\Resources\PaginatedDeliveryDocumentDetailResource;
 use App\Models\DeliveryDocumentDetail;
 use Illuminate\Http\Request;
 
@@ -40,9 +41,9 @@ class DeliveryDocumentDetailController extends Controller
                 $query->whereDoesntHave('returnDetail');
             }
 
-            $delivery_document_details = $query->get();
+            $delivery_document_details = $query->paginate();
 
-            $data = DeliveryDocumentDetailResource::collection($delivery_document_details);
+            $data = new PaginatedDeliveryDocumentDetailResource($delivery_document_details);
 
             return ResponseHandler::success($data, 'Detalles de Documento de Entregas Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

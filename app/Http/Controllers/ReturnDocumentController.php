@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Errors\NotAcceptable;
+use App\Http\Resources\PaginatedReturnDocumentResource;
 use App\Models\DeliveryDocument;
 
 class ReturnDocumentController extends Controller
@@ -51,8 +52,8 @@ class ReturnDocumentController extends Controller
                 });
             }
 
-            $return_documents = $query->orderByDesc('id')->get();
-            $data = ReturnDocumentResource::collection($return_documents);
+            $return_documents = $query->paginate();
+            $data = new PaginatedReturnDocumentResource($return_documents);
 
             return ResponseHandler::success($data, 'Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
