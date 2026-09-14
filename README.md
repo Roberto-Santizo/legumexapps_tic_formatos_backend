@@ -4,7 +4,7 @@ API REST (Laravel 13 / PHP 8.5, PostgreSQL, JWT) para los formatos de entrega y 
 
 ## Docker
 
-La imagen `robertosantizo/legumexapps_tic_backend` levanta **sólo el backend** (nginx + php-fpm + worker de cola + scheduler). No incluye base de datos: se conecta a un PostgreSQL externo que se indica por variables de entorno al arrancar el contenedor. Al iniciar, migra, crea el usuario administrador inicial y cachea la configuración.
+La imagen `robertosantizo/legumexapps_tic_formatos_backend` levanta **sólo el backend** (nginx + php-fpm + worker de cola + scheduler). No incluye base de datos: se conecta a un PostgreSQL externo que se indica por variables de entorno al arrancar el contenedor. Al iniciar, migra, crea el usuario administrador inicial y cachea la configuración.
 
 ```bash
 docker run -d --name legumex -p 8000:80 \
@@ -19,7 +19,7 @@ docker run -d --name legumex -p 8000:80 \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD='...' \
   -v legumex_storage:/var/www/html/storage \
-  robertosantizo/legumexapps_tic_backend:latest
+  robertosantizo/legumexapps_tic_formatos_backend:latest
 ```
 
 También se puede pasar un archivo con las variables: `docker run --env-file .env.docker ...`.

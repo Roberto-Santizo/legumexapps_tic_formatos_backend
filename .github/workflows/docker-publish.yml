@@ -10,7 +10,7 @@ concurrency:
     cancel-in-progress: false
 
 env:
-    IMAGE_NAME: robertosantizo/legumexapps_tic_backend
+    IMAGE_NAME: robertosantizo/legumexapps_tic_formatos_backend
 
 jobs:
     build-and-push:
