@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Department\DepartmentRequest;
+use App\Http\Resources\PaginatedDepartmentResource;
 use App\Models\Department;
 
 class DepartmentController extends Controller
@@ -15,7 +16,8 @@ class DepartmentController extends Controller
     public function index()
     {
         try {
-            $departments = Department::all();
+            $departments = Department::paginate();
+            $data = new PaginatedDepartmentResource($departments);
 
             return ResponseHandler::success($departments, 'Departamentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

@@ -9,6 +9,7 @@ use App\Http\Requests\Equipment\EquipmentAvailableRequest;
 use App\Http\Requests\Equipment\EquipmentRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EquipmentResource;
+use App\Http\Resources\PaginatedEquipmentResource;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Equipment;
 
@@ -20,8 +21,8 @@ class EquipmentController extends Controller
     public function index()
     {
         try {
-            $equipments = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail'])->get();
-            $data = EquipmentResource::collection($equipments);
+            $equipments = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail'])->paginate();
+            $data = new PaginatedEquipmentResource($equipments);
 
             return ResponseHandler::success($data, 'Equipos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

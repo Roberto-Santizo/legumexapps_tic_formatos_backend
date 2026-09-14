@@ -8,6 +8,7 @@ use App\Helpers\ResponseHandler;
 use App\Http\Requests\Employee\EmployeeRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EmployeeResource;
+use App\Http\Resources\PaginatedEmployeeResource;
 use App\Models\DeliveryDocumentDetail;
 use App\Models\Employee;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,8 +18,9 @@ class EmployeeController extends Controller
     public function index()
     {
         try {
-            $employees = Employee::with('department')->get();
-            $data = EmployeeResource::collection($employees);
+            //$employees = Employee::with('department')->get();
+            $employees = Employee::paginate();
+            $data = new PaginatedEmployeeResource($employees);
 
             return ResponseHandler::success($data, 'Empleados Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

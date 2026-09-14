@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Brand\BrandRequest;
+use App\Http\Resources\PaginatedBrandResource;
 use App\Models\Brand;
 
 class BrandController extends Controller
@@ -15,7 +16,8 @@ class BrandController extends Controller
     public function index()
     {
         try {
-            $brands = Brand::all();
+            $brands = Brand::paginate();
+            $data = new PaginatedBrandResource($brands);
 
             return ResponseHandler::success($brands, 'Marcas Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {

@@ -6,6 +6,7 @@ use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Caracteristic\CaracteristicIndexRequest;
 use App\Http\Requests\Caracteristic\CaracteristicRequest;
+use App\Http\Resources\PaginatedCaracteristicResource;
 use App\Models\Caracteristic;
 
 class CaracteristicController extends Controller
@@ -31,6 +32,9 @@ class CaracteristicController extends Controller
                     'equipment' => $caracteristic->equipment->name,
                 ];
             });
+
+            $caracteristics = $query->paginate();
+            $date = new PaginatedCaracteristicResource($caracteristics);
 
             return ResponseHandler::success($data, 'Características Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {

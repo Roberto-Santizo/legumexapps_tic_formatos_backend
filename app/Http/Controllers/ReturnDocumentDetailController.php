@@ -6,6 +6,8 @@ use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateReturnDocumentDetailRequest;
 use App\Http\Requests\UpdateReturnDocumentDetailRequest;
+use App\Http\Resources\PaginatedDeliveryDocumentDetailResource;
+use App\Http\Resources\PaginatedReturnDocumentDetailResource;
 use App\Http\Resources\ReturnDocumentDetailResource;
 use App\Models\ReturnDocumentDetail;
 use Illuminate\Http\Request;
@@ -33,8 +35,8 @@ class ReturnDocumentDetailController extends Controller
                 $query->where('return_document_id', $request->query('returnDocumentId'));
             }
 
-            $return_document_details = $query->get();
-            $data = ReturnDocumentDetailResource::collection($return_document_details);
+            $return_document_details = $query->paginate();
+            $data = new PaginatedReturnDocumentDetailResource($return_document_details);
 
             return ResponseHandler::success($data, 'Detalles de Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

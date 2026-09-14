@@ -10,6 +10,7 @@ use App\Http\Requests\DeliveryDocumentIndexRequest;
 use App\Http\Requests\UpdateDeliveryDocumentRequest;
 use App\Http\Resources\DeliveryDocumentDetailResource;
 use App\Http\Resources\DeliveryDocumentResource;
+use App\Http\Resources\PaginatedDeliveryDocumentResource;
 use App\Interfaces\Storage\ImageStorageServiceInterface;
 use App\Models\DeliveryDocument;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,8 +52,8 @@ class DeliveryDocumentController extends Controller
                 $this->applyStatusFilter($query, $request->validated('status'));
             }
 
-            $delivery_documents = $query->orderByDesc('id')->get();
-            $data = DeliveryDocumentResource::collection($delivery_documents);
+            $delivery_documents = $query->paginate();
+            $data = new PaginatedDeliveryDocumentResource($delivery_documents);
 
             return ResponseHandler::success($data, 'Documentos de Entrega Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
