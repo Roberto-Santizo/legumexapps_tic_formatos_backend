@@ -1,112 +1,41 @@
-x-app-environment: &app-environment
-    APP_NAME: "${APP_NAME:-Legumexapps TIC Formatos}"
-    APP_ENV: "${APP_ENV:-production}"
-    APP_KEY: "${APP_KEY}"
-    APP_DEBUG: "${APP_DEBUG:-false}"
-    APP_URL: "${APP_URL:-http://localhost:8000}"
-    APP_LOCALE: "${APP_LOCALE:-en}"
-    LOG_CHANNEL: stack
-    LOG_STACK: single
-    LOG_LEVEL: "${LOG_LEVEL:-info}"
-    DB_CONNECTION: pgsql
-    DB_HOST: db
-    DB_PORT: 5432
-    DB_DATABASE: "${DB_DATABASE:-legumexapps_tic_formatos}"
-    DB_USERNAME: "${DB_USERNAME:-postgres}"
-    DB_PASSWORD: "${DB_PASSWORD:-mysecretpassword}"
-    SESSION_DRIVER: database
-    CACHE_STORE: database
-    QUEUE_CONNECTION: database
-    FILESYSTEM_DISK: local
-    JWT_SECRET: "${JWT_SECRET}"
-    ADMIN_NAME: "${ADMIN_NAME:-Administrador}"
-    ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
-    ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
-
-x-app-service: &app-service
-    build:
-        context: .
-        dockerfile: docker/php/Dockerfile
-        # Sin esto se construiria el ultimo stage (standalone, con su propio
-        # postgres dentro). Aqui la base es el servicio db.
-        target: runtime
-    image: legumexapps-tic-formatos:latest
-    restart: unless-stopped
-    environment: *app-environment
-    volumes:
-        - app_storage:/var/www/html/storage
-    networks:
-        - legumexapps
-    depends_on:
-        db:
-            condition: service_healthy
-
+# Sólo el backend. La base de datos es externa: se le indica con DB_HOST y
+# compañía, que compose lee del entorno de la shell o del .env del proyecto.
+#
+#   docker compose up -d --build
+#
+# Equivale a `docker run -e ...` con las mismas variables; ver README.md.
 services:
-    # PHP-FPM: sirve la aplicación y es el único que corre las migraciones.
     app:
-        <<: *app-service
-        volumes:
-            - app_storage:/var/www/html/storage
-            - app_public:/var/www/html/public
-
-    # Nginx: expone public/ y delega los .php a app:9000.
-    web:
-        image: nginx:1.27-alpine
+        build:
+            context: .
+            dockerfile: docker/php/Dockerfile
+        image: legumexapps_tic_formatos_backend:latest
         restart: unless-stopped
-        depends_on:
-            - app
         ports:
             - "${APP_PORT:-8000}:80"
-        volumes:
-            - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-            - app_public:/var/www/html/public:ro
-        networks:
-            - legumexapps
-
-    # Worker de la cola (QUEUE_CONNECTION=database).
-    queue:
-        <<: *app-service
-        command: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
-        depends_on:
-            db:
-                condition: service_healthy
-            app:
-                condition: service_started
-
-    # Scheduler (reemplaza al cron de php artisan schedule:run).
-    scheduler:
-        <<: *app-service
-        command: ["php", "artisan", "schedule:work"]
-        depends_on:
-            db:
-                condition: service_healthy
-            app:
-                condition: service_started
-
-    db:
-        image: postgres:17-alpine
-        restart: unless-stopped
         environment:
-            POSTGRES_DB: "${DB_DATABASE:-legumexapps_tic_formatos}"
-            POSTGRES_USER: "${DB_USERNAME:-postgres}"
-            POSTGRES_PASSWORD: "${DB_PASSWORD:-mysecretpassword}"
-        ports:
-            - "${DB_PORT_FORWARD:-5433}:5432"
+            APP_NAME: "${APP_NAME:-Legumexapps TIC Formatos}"
+            APP_ENV: "${APP_ENV:-production}"
+            APP_KEY: "${APP_KEY}"
+            APP_DEBUG: "${APP_DEBUG:-false}"
+            APP_URL: "${APP_URL:-http://localhost:8000}"
+            APP_LOCALE: "${APP_LOCALE:-en}"
+            LOG_LEVEL: "${LOG_LEVEL:-info}"
+            DB_HOST: "${DB_HOST:?DB_HOST es obligatorio}"
+            DB_PORT: "${DB_PORT:-5432}"
+            DB_DATABASE: "${DB_DATABASE:?DB_DATABASE es obligatorio}"
+            DB_USERNAME: "${DB_USERNAME:?DB_USERNAME es obligatorio}"
+            DB_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD es obligatorio}"
+            JWT_SECRET: "${JWT_SECRET}"
+            ADMIN_NAME: "${ADMIN_NAME:-Administrador}"
+            ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+            ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
         volumes:
-            - db_data:/var/lib/postgresql/data
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-legumexapps_tic_formatos}"]
-            interval: 5s
-            timeout: 5s
-            retries: 10
-        networks:
-            - legumexapps
+            - app_storage:/var/www/html/storage
+        # Para un postgres corriendo en la máquina anfitriona usa
+        # DB_HOST=host.docker.internal (en Linux hace falta esta línea).
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
 
 volumes:
     app_storage:
-    app_public:
-    db_data:
-
-networks:
-    legumexapps:
-        driver: bridge

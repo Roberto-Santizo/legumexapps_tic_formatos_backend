@@ -152,7 +152,7 @@ vendor/bin/pest tests/Feature/AssignmentFlowTest.php
 vendor/bin/pest --filter='crea una marca'
 vendor/bin/pint --dirty --format agent   # obligatorio tras tocar PHP
 php artisan storage:link            # necesario para servir las firmas
-docker compose up -d                # app php-fpm + nginx + queue + scheduler + postgres
+docker compose up -d                # solo backend (nginx + php-fpm + queue + scheduler); la BD es externa via DB_*
 ```
 
 Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta y `ReglasNegocioTest` una regla de negocio por test. La suite completa pasa (80/80).
@@ -193,4 +193,4 @@ Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `Refres
 
 ## Docker y despliegue
 
-`docker/php/Dockerfile` tiene dos targets finales: `runtime` (php-fpm, el que usa `docker-compose.yml` junto a nginx y el servicio `db`) y `standalone` (all-in-one con postgres y nginx dentro, publicado como `:latest`). Sólo el contenedor php-fpm migra y cachea; queue y scheduler esperan a `/run/app-ready`. Push a `main` dispara `.github/workflows/docker-publish.yml`, que autoincrementa el tag `v0.0.X` y publica ambas imágenes en Docker Hub.
+`docker/php/Dockerfile` produce **una sola imagen** (target `app`): nginx + php-fpm + worker de cola + scheduler bajo supervisor (`docker/supervisor/supervisord.conf`), **sin base de datos**. Toda la configuración entra por variables de entorno (`docker run -e ...` o `--env-file`); la imagen no lee ningún `.env`. `docker/php/entrypoint.sh` aborta si faltan `DB_HOST`, `DB_DATABASE`, `DB_USERNAME` o `DB_PASSWORD`, y genera `APP_KEY`/`JWT_SECRET` efímeros con advertencia si no vienen. `app-start.sh` espera a la BD externa, migra, corre `InitialUserSeeder`, hace `storage:link` y cachea antes de arrancar php-fpm; queue y scheduler esperan a `/run/app-ready`. `docker-compose.yml` sólo envuelve ese contenedor pasando las mismas variables desde el `.env`/shell. La tabla completa de variables está en `README.md`. Push a `main` dispara `.github/workflows/docker-publish.yml`, que autoincrementa el tag `v0.0.X` y publica la imagen en Docker Hub como `:0.0.X` y `:latest`.

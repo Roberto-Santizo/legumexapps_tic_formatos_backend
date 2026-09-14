@@ -3,7 +3,7 @@
 # si no, revientan buscando las tablas de cache/jobs.
 set -e
 
-retries="${APP_WAIT_RETRIES:-120}"
+retries="${APP_WAIT_RETRIES:-180}"
 
 until [ -f /run/app-ready ]; do
     retries=$((retries - 1))

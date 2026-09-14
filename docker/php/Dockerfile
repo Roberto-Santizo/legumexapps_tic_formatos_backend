@@ -33,9 +33,11 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev --no-scripts
 
 # ---------------------------------------------------------------------------
-# Stage 3: runtime php-fpm
+# Stage 3: imagen final — nginx + php-fpm + queue + scheduler bajo supervisor.
+# NO incluye base de datos: se conecta a un postgres externo con las variables
+# DB_* que se pasan al contenedor (`docker run -e DB_HOST=... -e DB_PASSWORD=...`).
 # ---------------------------------------------------------------------------
-FROM php:8.5-fpm-alpine AS runtime
+FROM php:8.5-fpm-alpine AS app
 
 # Librerías runtime: se quedan en la imagen final.
 RUN apk add --no-cache \
@@ -45,7 +47,10 @@ RUN apk add --no-cache \
         libzip \
         libpng \
         libjpeg-turbo \
-        freetype
+        freetype \
+        nginx \
+        supervisor \
+        su-exec
 
 # Headers de compilación: virtual package que se elimina tras compilar,
 # así no arrastramos los -dev ni dejamos huérfanas las libs de arriba.
@@ -72,6 +77,8 @@ RUN apk add --no-cache --virtual .build-deps \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /var/www/html
 
@@ -80,88 +87,54 @@ COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
 COPY --from=assets --chown=www-data:www-data /app/public/build ./public/build
 
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint
+COPY docker/php/app-start.sh /usr/local/bin/app-start
+COPY docker/php/wait-for-db.sh /usr/local/bin/wait-for-db
+COPY docker/php/wait-for-app.sh /usr/local/bin/wait-for-app
 
-# public-dist es la copia pristina de public/. El entrypoint la vuelca sobre el
-# volumen compartido con nginx en cada arranque, para que los assets de Vite no
-# queden desfasados respecto a la imagen tras un rebuild.
+# public-dist es la copia pristina de public/. El entrypoint la vuelca sobre
+# public/ en cada arranque por si alguien monta un volumen encima.
 RUN chmod +x /usr/local/bin/entrypoint \
+              /usr/local/bin/app-start \
+              /usr/local/bin/wait-for-db \
+              /usr/local/bin/wait-for-app \
     && cp -a public /var/www/html/public-dist \
     && mkdir -p storage/framework/cache/data \
                 storage/framework/sessions \
                 storage/framework/views \
                 storage/logs \
+                storage/app/public \
                 bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache public public-dist \
-    && chmod -R 775 storage bootstrap/cache
-
-USER www-data
-
-# Regenera el manifest de paquetes con el vendor sin dev-deps.
-RUN php artisan package:discover --ansi --no-interaction
-
-EXPOSE 9000
-
-ENTRYPOINT ["entrypoint"]
-CMD ["php-fpm"]
-
-# ---------------------------------------------------------------------------
-# Stage 4: all-in-one — postgres + nginx + php-fpm + queue + scheduler en un
-# solo contenedor. `docker run -p 8000:80 imagen` y listo, sin compose.
-# ---------------------------------------------------------------------------
-FROM runtime AS standalone
-
-USER root
-
-RUN apk add --no-cache \
-        postgresql17 \
-        postgresql17-client \
-        nginx \
-        supervisor \
-        su-exec
-
-COPY docker/standalone/nginx.conf /etc/nginx/nginx.conf
-COPY docker/standalone/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/standalone/entrypoint.sh /usr/local/bin/standalone-entrypoint
-COPY docker/standalone/wait-for-db.sh /usr/local/bin/wait-for-db
-COPY docker/standalone/wait-for-app.sh /usr/local/bin/wait-for-app
-COPY docker/standalone/app-start.sh /usr/local/bin/app-start
-
-RUN chmod +x /usr/local/bin/standalone-entrypoint \
-              /usr/local/bin/wait-for-db \
-              /usr/local/bin/wait-for-app \
-              /usr/local/bin/app-start \
-    && mkdir -p /run/postgresql /run/nginx /var/lib/nginx/tmp /var/lib/postgresql/data \
-    && chown -R postgres:postgres /run/postgresql /var/lib/postgresql \
-    && chown -R www-data:www-data /var/lib/nginx \
+                /run/nginx /var/lib/nginx/tmp \
+    && chown -R www-data:www-data storage bootstrap/cache public public-dist /var/lib/nginx \
+    && chmod -R 775 storage bootstrap/cache \
     && ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 
-# Valores por defecto: sin esto el contenedor no sabria a que base conectarse.
+# Regenera el manifest de paquetes con el vendor sin dev-deps.
+RUN su-exec www-data php artisan package:discover --ansi --no-interaction
+
+# Valores por defecto de lo que NO es secreto ni depende del entorno. Todo lo
+# demas (DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD, APP_KEY, JWT_SECRET,
+# APP_URL, ADMIN_*) se pasa con `docker run -e VAR=valor` o `--env-file`.
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    APP_URL=http://localhost:8000 \
-    LOG_CHANNEL=stack \
-    LOG_STACK=single \
+    APP_LOCALE=en \
+    LOG_CHANNEL=stderr \
     LOG_LEVEL=info \
     DB_CONNECTION=pgsql \
-    DB_HOST=127.0.0.1 \
     DB_PORT=5432 \
-    DB_DATABASE=legumexapps_tic_formatos \
-    DB_USERNAME=postgres \
-    DB_PASSWORD=mysecretpassword \
     SESSION_DRIVER=database \
     CACHE_STORE=database \
     QUEUE_CONNECTION=database \
-    FILESYSTEM_DISK=local \
-    PGDATA=/var/lib/postgresql/data
+    FILESYSTEM_DISK=local
 
-# Datos de postgres + APP_KEY/JWT_SECRET generados: montar un volumen aqui para
-# no perderlos al recrear el contenedor.
-VOLUME ["/var/lib/postgresql"]
+# Firmas subidas (storage/app/public), sesiones y logs: montar un volumen aqui
+# para no perderlas al recrear el contenedor.
+VOLUME ["/var/www/html/storage"]
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD php -r 'exit(@file_get_contents("http://127.0.0.1/up") === false ? 1 : 0);'
 
-ENTRYPOINT ["standalone-entrypoint"]
+ENTRYPOINT ["entrypoint"]
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

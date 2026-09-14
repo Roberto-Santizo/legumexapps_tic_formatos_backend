@@ -51,33 +51,18 @@ jobs:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            # Imagen all-in-one (postgres + nginx + php-fpm dentro): es la que
-            # etiquetamos como :latest para que `docker run` funcione sin nada mas.
-            - name: Build y push de la imagen all-in-one
+            # Una sola imagen: nginx + php-fpm + queue + scheduler, sin base de
+            # datos. Se configura por variables de entorno en `docker run -e`.
+            - name: Build y push de la imagen
               uses: docker/build-push-action@v6
               with:
                   context: .
                   file: docker/php/Dockerfile
-                  target: standalone
+                  target: app
                   push: true
                   tags: |
                       ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
                       ${{ env.IMAGE_NAME }}:latest
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
-
-            # Imagen solo php-fpm, la que consume docker-compose junto al
-            # servicio db y a nginx.
-            - name: Build y push de la imagen php-fpm
-              uses: docker/build-push-action@v6
-              with:
-                  context: .
-                  file: docker/php/Dockerfile
-                  target: runtime
-                  push: true
-                  tags: |
-                      ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-fpm
-                      ${{ env.IMAGE_NAME }}:fpm
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
 
