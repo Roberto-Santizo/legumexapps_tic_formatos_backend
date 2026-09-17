@@ -20,7 +20,7 @@ class ReturnDocumentResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'return_date' => $this->return_date->format('d-m-Y h:m:s A'),
+            'return_date' => $this->return_date,
             'responsable_signature' => $this->signatureUrl($this->responsable_signature),
             'administrador_signature' => $this->signatureUrl($this->administrador_signature),
             'employee_id' => $delivery->employee->id,

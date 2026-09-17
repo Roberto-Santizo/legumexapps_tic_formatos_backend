@@ -21,7 +21,7 @@ class DeliveryDocumentResource extends JsonResource
         return [
             'id' => $this->id,
             'location' => Plant::tryFrom((int) $this->location)?->label() ?? 'Planta desconocida',
-            'delivery_date' => $this->delivery_date->format('d-m-Y h:m:s A'),
+            'delivery_date' => $this->delivery_date,
             'responsable_signature' => $this->signatureUrl($this->responsable_signature),
             'administrador_signature' => $this->signatureUrl($this->administrador_signature),
             'employee_id' => $this->employee->id,
