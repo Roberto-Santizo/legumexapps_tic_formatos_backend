@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Disco de las firmas
+    |--------------------------------------------------------------------------
+    |
+    | Disco donde `ImageStorageService` guarda las firmas de los documentos de
+    | entrega y devolución. En producción es la cubeta S3 (`s3`); en local o
+    | en tests puede apuntarse a `public`.
+    |
+    */
+
+    'signatures' => env('SIGNATURES_DISK', 's3'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

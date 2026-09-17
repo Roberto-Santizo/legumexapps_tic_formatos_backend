@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Employee\EmployeeIndexRequest;
 use App\Http\Requests\Employee\EmployeeRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EmployeeResource;
@@ -15,12 +16,13 @@ use Illuminate\Database\Eloquent\Builder;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    /**
+     * Listado de empleados. Se pagina sólo cuando llega `limit`.
+     */
+    public function index(EmployeeIndexRequest $request)
     {
         try {
-            //$employees = Employee::with('department')->get();
-            $employees = Employee::paginate();
-            $data = new PaginatedEmployeeResource($employees);
+            $data = $this->paginateOrAll(Employee::query(), $request, PaginatedEmployeeResource::class, EmployeeResource::class);
 
             return ResponseHandler::success($data, 'Empleados Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

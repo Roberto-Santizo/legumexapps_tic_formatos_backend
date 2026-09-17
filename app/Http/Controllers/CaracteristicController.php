@@ -6,13 +6,15 @@ use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Caracteristic\CaracteristicIndexRequest;
 use App\Http\Requests\Caracteristic\CaracteristicRequest;
+use App\Http\Resources\CaracteristicResource;
 use App\Http\Resources\PaginatedCaracteristicResource;
 use App\Models\Caracteristic;
 
 class CaracteristicController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listado de características en vista reducida. Acepta el filtro
+     * `equipmentId` y se pagina sólo cuando llega `limit`.
      */
     public function index(CaracteristicIndexRequest $request)
     {
@@ -23,18 +25,7 @@ class CaracteristicController extends Controller
                 $query->where('equipment_id', $request->validated('equipmentId'));
             }
 
-            $caracteristics = $query->get();
-
-            $data = $caracteristics->map(function ($caracteristic) {
-                return [
-                    'id' => $caracteristic->id,
-                    'name' => $caracteristic->name,
-                    'equipment' => $caracteristic->equipment->name,
-                ];
-            });
-
-            $caracteristics = $query->paginate();
-            $date = new PaginatedCaracteristicResource($caracteristics);
+            $data = $this->paginateOrAll($query, $request, PaginatedCaracteristicResource::class, CaracteristicResource::class);
 
             return ResponseHandler::success($data, 'Características Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {

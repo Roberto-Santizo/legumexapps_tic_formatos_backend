@@ -5,12 +5,11 @@ namespace App\Http\Controllers;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateReturnDocumentDetailRequest;
+use App\Http\Requests\ReturnDocumentDetailIndexRequest;
 use App\Http\Requests\UpdateReturnDocumentDetailRequest;
-use App\Http\Resources\PaginatedDeliveryDocumentDetailResource;
 use App\Http\Resources\PaginatedReturnDocumentDetailResource;
 use App\Http\Resources\ReturnDocumentDetailResource;
 use App\Models\ReturnDocumentDetail;
-use Illuminate\Http\Request;
 
 class ReturnDocumentDetailController extends Controller
 {
@@ -24,19 +23,19 @@ class ReturnDocumentDetailController extends Controller
     ];
 
     /**
-     * Display a listing of the resource. Acepta el filtro `returnDocumentId`.
+     * Listado de detalles de devolución. Acepta el filtro `returnDocumentId`;
+     * se pagina sólo cuando llega `limit`.
      */
-    public function index(Request $request)
+    public function index(ReturnDocumentDetailIndexRequest $request)
     {
         try {
             $query = ReturnDocumentDetail::with(self::RELATIONS);
 
-            if ($request->query('returnDocumentId')) {
-                $query->where('return_document_id', $request->query('returnDocumentId'));
+            if ($request->validated('returnDocumentId')) {
+                $query->where('return_document_id', $request->validated('returnDocumentId'));
             }
 
-            $return_document_details = $query->paginate();
-            $data = new PaginatedReturnDocumentDetailResource($return_document_details);
+            $data = $this->paginateOrAll($query, $request, PaginatedReturnDocumentDetailResource::class, ReturnDocumentDetailResource::class);
 
             return ResponseHandler::success($data, 'Detalles de Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

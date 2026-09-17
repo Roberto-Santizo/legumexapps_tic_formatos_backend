@@ -5,7 +5,11 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class PaginatedCaracteristicResource extends JsonResource
+/**
+ * Vista reducida de una característica para el listado: `id`, `name` y el
+ * nombre del equipo al que pertenece.
+ */
+class CaracteristicResource extends JsonResource
 {
     /**
      * Transform the resource into an array.
@@ -14,13 +18,10 @@ class PaginatedCaracteristicResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $items = CaracteristicResource::collection($this->items());
-
         return [
-            'data' => $items,
-            'total' => $this->total(),
-            'currentPage' => $this->currentPage(),
-            'lastPage' => $this->lastPage(),
+            'id' => $this->id,
+            'name' => $this->name,
+            'equipment' => $this->equipment->name,
         ];
     }
 }

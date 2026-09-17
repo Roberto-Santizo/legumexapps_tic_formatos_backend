@@ -27,6 +27,10 @@ class ImageStorageService implements ImageStorageServiceInterface
      */
     private const MAX_SIZE_IN_BYTES = 5242880;
 
+    /**
+     * @param  string  $disk  disco de `config/filesystems.php` donde se guardan las imágenes
+     *                        (`StorageProvider` inyecta `filesystems.signatures`).
+     */
     public function __construct(private readonly string $disk = 'public') {}
 
     /**

@@ -544,10 +544,17 @@ paths:
       description: |
         Devuelve todas las marcas registradas.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/brands` — protegida por el middleware `jwt.auth`.
       operationId: listBrands
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
       responses:
         '200':
           description: Marcas obtenidas correctamente.
@@ -574,6 +581,8 @@ paths:
                     updated_at: '2026-09-01T22:16:01.000000Z'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -732,10 +741,17 @@ paths:
       description: |
         Devuelve todos los departamentos registrados.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/departments` — protegida por el middleware `jwt.auth`.
       operationId: listDepartments
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
       responses:
         '200':
           description: Departamentos obtenidos correctamente.
@@ -762,6 +778,8 @@ paths:
                     updated_at: '2026-09-02T14:15:07.000000Z'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -922,10 +940,17 @@ paths:
         `id`, el `name`, el nombre de la marca y el nombre del usuario que lo
         registró. Para el registro completo usa `GET /api/equipments/{id}`.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/equipments` — protegida por el middleware `jwt.auth`.
       operationId: listEquipments
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
       responses:
         '200':
           description: Equipos obtenidos correctamente.
@@ -952,6 +977,8 @@ paths:
                     registeredBy: Roberto Santizo
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1196,11 +1223,17 @@ paths:
 
         Acepta el filtro opcional `equipmentId` para limitar el listado a un equipo.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/caracteristics` — protegida por el middleware `jwt.auth`.
       operationId: listCaracteristics
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
         - name: equipmentId
           in: query
           required: false
@@ -1408,10 +1441,17 @@ paths:
         Devuelve todos los empleados registrados en una **vista reducida**: sólo el
         `id`, el `code`, el `name` y el nombre del departamento al que pertenecen.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/employees` — protegida por el middleware `jwt.auth`.
       operationId: listEmployees
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
       responses:
         '200':
           description: Empleados obtenidos correctamente.
@@ -1438,6 +1478,8 @@ paths:
                     department: Tecnología de la Información
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1660,15 +1702,21 @@ paths:
       tags: [Documentos de Entrega]
       summary: Listar documentos de entrega
       description: |
-        Devuelve todos los documentos de entrega con el empleado que recibió el
-        equipo, el usuario que registró la entrega y el arreglo `items` con cada
-        equipo entregado.
+        Devuelve todos los documentos de entrega, del más reciente al más
+        antiguo, con el empleado que recibió el equipo, el usuario que registró
+        la entrega y el arreglo `items` con cada equipo entregado.
+
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
 
         Ruta: `GET /api/delivery_documents` — protegida por el middleware `jwt.auth`.
       operationId: listDeliveryDocuments
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
         - name: employeeId
           in: query
           required: false
@@ -1741,6 +1789,8 @@ paths:
                         observations: Se entrega sin cargador
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -1983,11 +2033,17 @@ paths:
         (marca, modelo, serie y estado). Acepta el filtro opcional
         `deliveryDocumentId` para limitar el listado a un documento.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/delivery_document_details` — protegida por el middleware `jwt.auth`.
       operationId: listDeliveryDocumentDetails
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
         - name: deliveryDocumentId
           in: query
           required: false
@@ -2045,6 +2101,8 @@ paths:
                     observations: Se entrega sin cargador
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -2492,11 +2550,17 @@ paths:
         se lee a través de esa entrega) y el arreglo `items` con los equipos
         devueltos.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/return_documents` — protegida por el middleware `jwt.auth`.
       operationId: listReturnDocuments
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
         - name: deliveryDocumentId
           in: query
           required: false
@@ -2733,11 +2797,17 @@ paths:
         detalle de entrega del que provienen. Acepta el filtro opcional
         `returnDocumentId`.
 
+        Paginación opcional: si se envía `limit` la respuesta se pagina con ese
+        tamaño y añade `total`, `currentPage` y `lastPage` junto a `data` (la
+        página se elige con `page`); si no se envía, `data` trae todos los registros.
+
         Ruta: `GET /api/return_document_details` — protegida por el middleware `jwt.auth`.
       operationId: listReturnDocumentDetails
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Page'
         - name: returnDocumentId
           in: query
           required: false
@@ -2763,6 +2833,8 @@ paths:
                           $ref: '#/components/schemas/ReturnDocumentDetail'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/PaginationError'
         '500':
           $ref: '#/components/responses/ServerError'
 
@@ -4037,6 +4109,29 @@ components:
         type: integer
         example: 1
 
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: |
+        Tamaño de página. Si se envía, el listado se pagina y la respuesta incluye
+        `total`, `currentPage` y `lastPage`; si se omite se devuelven todos los registros.
+        Debe ser un entero mayor a cero.
+      schema:
+        type: integer
+        minimum: 1
+        example: 10
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Número de página (desde 1). Sólo tiene efecto cuando se envía `limit`.
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
   responses:
 
     ValidationError:
@@ -4045,6 +4140,33 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ValidationErrorResponse'
+
+    PaginationError:
+      description: |
+        `limit` o `page` no pasaron la validación (`PaginatedIndexRequest`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            limiteNoNumerico:
+              summary: limit no es numérico
+              value:
+                message: El límite debe ser un valor numérico
+                errors:
+                  limit: ['El límite debe ser un valor numérico']
+            limiteCero:
+              summary: limit menor a 1
+              value:
+                message: El límite debe ser mayor a cero
+                errors:
+                  limit: ['El límite debe ser mayor a cero']
+            paginaCero:
+              summary: page menor a 1
+              value:
+                message: La página debe ser mayor a cero
+                errors:
+                  page: ['La página debe ser mayor a cero']
 
     NameRequiredError:
       description: |

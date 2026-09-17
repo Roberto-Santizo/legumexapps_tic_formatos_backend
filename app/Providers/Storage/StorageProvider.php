@@ -10,7 +10,9 @@ class StorageProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(ImageStorageServiceInterface::class, ImageStorageService::class);
+        $this->app->bind(ImageStorageServiceInterface::class, function () {
+            return new ImageStorageService(config('filesystems.signatures'));
+        });
     }
 
     public function boot(): void

@@ -3,24 +3,15 @@
 namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class ReturnDocumentIndexRequest extends FormRequest
+class ReturnDocumentIndexRequest extends PaginatedIndexRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Filtros opcionales de `GET /return_documents`.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
+    protected function filterRules(): array
     {
         return [
             'deliveryDocumentId' => ['nullable', 'exists:delivery_documents,id'],
@@ -31,7 +22,7 @@ class ReturnDocumentIndexRequest extends FormRequest
     /**
      * @return array<string, string>
      */
-    public function messages(): array
+    protected function filterMessages(): array
     {
         return [
             'deliveryDocumentId.exists' => 'El documento de entrega seleccionado no existe',

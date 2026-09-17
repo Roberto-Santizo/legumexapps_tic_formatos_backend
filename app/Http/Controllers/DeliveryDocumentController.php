@@ -33,12 +33,13 @@ class DeliveryDocumentController extends Controller
 
     /**
      * Listado de entregas. Acepta los filtros `employeeId`, `location` y
-     * `status` (`pendiente`, `parcial`, `devuelto` o `activo`).
+     * `status` (`pendiente`, `parcial`, `devuelto` o `activo`). Devuelve de la
+     * más reciente a la más antigua y se pagina sólo cuando llega `limit`.
      */
     public function index(DeliveryDocumentIndexRequest $request)
     {
         try {
-            $query = DeliveryDocument::with(self::RELATIONS);
+            $query = DeliveryDocument::with(self::RELATIONS)->orderByDesc('id');
 
             if ($request->validated('employeeId')) {
                 $query->where('employee_id', $request->validated('employeeId'));
@@ -52,8 +53,7 @@ class DeliveryDocumentController extends Controller
                 $this->applyStatusFilter($query, $request->validated('status'));
             }
 
-            $delivery_documents = $query->paginate();
-            $data = new PaginatedDeliveryDocumentResource($delivery_documents);
+            $data = $this->paginateOrAll($query, $request, PaginatedDeliveryDocumentResource::class, DeliveryDocumentResource::class);
 
             return ResponseHandler::success($data, 'Documentos de Entrega Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

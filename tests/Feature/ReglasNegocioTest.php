@@ -622,3 +622,32 @@ it('RN-24 no elimina un empleado con equipo asignado', function () {
 
     expect(Employee::find($otro->id))->toBeNull();
 });
+
+// ---------------------------------------------------------------------------
+// Listados
+// ---------------------------------------------------------------------------
+
+it('lista entregas y devoluciones de la más reciente a la más antigua', function () {
+    Storage::fake('public');
+    $headers = headersDeReglas();
+    ['employee' => $employee, 'otro' => $otro, 'laptop' => $laptop, 'mouse' => $mouse] = escenarioDeReglas();
+
+    entregar($headers, $employee->id, [['equipment_id' => $laptop->id]])->assertStatus(201);
+    $primera = ultimaEntrega($headers);
+
+    entregar($headers, $otro->id, [['equipment_id' => $mouse->id]])->assertStatus(201);
+    $segunda = ultimaEntrega($headers);
+
+    expect($segunda)->toBeGreaterThan($primera);
+
+    test()->getJson('/api/delivery_documents', $headers)
+        ->assertJsonPath('data.0.id', $segunda)
+        ->assertJsonPath('data.1.id', $primera);
+
+    devolver($headers, $primera, [['delivery_document_detail_id' => pendientes($headers, $primera)[0]['id']]])->assertStatus(201);
+    devolver($headers, $segunda, [['delivery_document_detail_id' => pendientes($headers, $segunda)[0]['id']]])->assertStatus(201);
+
+    $devoluciones = test()->getJson('/api/return_documents', $headers)->json('data');
+
+    expect($devoluciones[0]['id'])->toBeGreaterThan($devoluciones[1]['id']);
+});

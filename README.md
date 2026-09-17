@@ -18,6 +18,10 @@ docker run -d --name legumex -p 8000:80 \
   -e DB_PASSWORD='...' \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD='...' \
+  -e AWS_ACCESS_KEY_ID='...' \
+  -e AWS_SECRET_ACCESS_KEY='...' \
+  -e AWS_DEFAULT_REGION=us-east-1 \
+  -e AWS_BUCKET=legumex-firmas \
   -v legumex_storage:/var/www/html/storage \
   robertosantizo/legumexapps_tic_formatos_backend:latest
 ```
@@ -40,12 +44,15 @@ También se puede pasar un archivo con las variables: `docker run --env-file .en
 | `APP_NAME`, `APP_LOCALE`, `LOG_LEVEL` | no | Nombre, idioma (`en`) y nivel de log (`info`). Los logs salen por `docker logs`. |
 | `ADMIN_NAME`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | no | Usuario administrador inicial (`Administrador` / `admin` / `admin123`). El seeder es idempotente y no pisa una contraseña ya cambiada. |
 | `DB_WAIT_RETRIES` | no | Intentos (cada 2 s) esperando a la base antes de abortar (`60`). |
+| `SIGNATURES_DISK` | no | Disco donde se guardan las firmas: `s3` (por defecto, cubeta AWS) o `public` (`storage/app/public/signatures`). |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET` | sí con `SIGNATURES_DISK=s3` | Credenciales, región (`us-east-1`) y cubeta donde se guardan las firmas bajo `signatures/`. |
+| `AWS_URL`, `AWS_ENDPOINT`, `AWS_USE_PATH_STYLE_ENDPOINT` | no | URL pública de la cubeta, endpoint alterno (MinIO, etc.) y estilo de ruta (`false`). |
 
-Sin las cuatro `DB_*` obligatorias el contenedor termina al instante con un mensaje indicando cuáles faltan.
+Sin las cuatro `DB_*` obligatorias el contenedor termina al instante con un mensaje indicando cuáles faltan. Lo mismo ocurre si `SIGNATURES_DISK=s3` (el valor por defecto) y faltan `AWS_BUCKET` o `AWS_DEFAULT_REGION`; sin `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` sólo avisa y asume que el contenedor tiene un rol IAM.
 
 ### Volúmenes
 
-- `/var/www/html/storage`: firmas subidas (`storage/app/public/signatures`), sesiones y logs. Móntalo para no perderlas al recrear el contenedor.
+- `/var/www/html/storage`: sesiones, logs y, sólo con `SIGNATURES_DISK=public`, las firmas subidas (`storage/app/public/signatures`). Con el disco `s3` (por defecto) las firmas viven en la cubeta y no dependen del volumen.
 
 ### Con docker compose
 
