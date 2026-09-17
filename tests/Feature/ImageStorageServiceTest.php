@@ -54,3 +54,13 @@ it('devuelve la url pública de la imagen', function () {
 
     expect($this->service->url($path))->toContain('/storage/'.$path);
 });
+
+it('guarda la firma en el disco configurado en filesystems.signatures', function () {
+    config(['filesystems.signatures' => 's3']);
+    Storage::fake('s3');
+
+    $path = app(ImageStorageServiceInterface::class)->store(UploadedFile::fake()->image('firma.png'));
+
+    Storage::disk('s3')->assertExists($path);
+    Storage::disk('public')->assertMissing($path);
+});

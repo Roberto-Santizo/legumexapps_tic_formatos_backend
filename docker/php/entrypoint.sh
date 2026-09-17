@@ -21,6 +21,28 @@ if [ -n "$missing" ]; then
     exit 1
 fi
 
+# --- Cubeta S3 de las firmas ------------------------------------------------
+# Con SIGNATURES_DISK=s3 (por defecto) hace falta la cubeta y la region. Las
+# credenciales pueden venir de un rol IAM (ECS/EC2), asi que solo se avisa.
+if [ "${SIGNATURES_DISK:-s3}" = "s3" ]; then
+    missing=""
+    for var in AWS_BUCKET AWS_DEFAULT_REGION; do
+        if [ -z "${!var}" ]; then
+            missing="$missing $var"
+        fi
+    done
+
+    if [ -n "$missing" ]; then
+        echo "ERROR: SIGNATURES_DISK=s3 pero faltan variables de entorno:$missing" >&2
+        echo "Pasa -e AWS_BUCKET=... -e AWS_DEFAULT_REGION=... -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=..., o -e SIGNATURES_DISK=public para guardar las firmas en el volumen de storage." >&2
+        exit 1
+    fi
+
+    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+        echo "ADVERTENCIA: AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY vacios. Se asume que el contenedor tiene un rol IAM con acceso a la cubeta $AWS_BUCKET." >&2
+    fi
+fi
+
 # --- Secretos ---------------------------------------------------------------
 # Sin APP_KEY/JWT_SECRET el contenedor arranca igual, pero con valores efimeros:
 # las sesiones y los tokens dejan de valer en cuanto se reinicia.

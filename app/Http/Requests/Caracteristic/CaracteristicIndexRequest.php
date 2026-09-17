@@ -2,19 +2,16 @@
 
 namespace App\Http\Requests\Caracteristic;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\PaginatedIndexRequest;
 
-class CaracteristicIndexRequest extends FormRequest
+class CaracteristicIndexRequest extends PaginatedIndexRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
+     * Filtros opcionales de `GET /caracteristics`.
+     *
      * @return array<string, mixed>
      */
-    public function rules(): array
+    protected function filterRules(): array
     {
         return [
             'equipmentId' => ['nullable', 'integer', 'exists:equipments,id'],
@@ -24,7 +21,7 @@ class CaracteristicIndexRequest extends FormRequest
     /**
      * @return array<string, string>
      */
-    public function messages(): array
+    protected function filterMessages(): array
     {
         return [
             'equipmentId.integer' => 'El equipo debe ser un identificador numérico.',

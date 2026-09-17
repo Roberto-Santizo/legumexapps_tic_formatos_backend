@@ -6,6 +6,7 @@ use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\Equipment\EquipmentAvailableRequest;
+use App\Http\Requests\Equipment\EquipmentIndexRequest;
 use App\Http\Requests\Equipment\EquipmentRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\EquipmentResource;
@@ -16,13 +17,14 @@ use App\Models\Equipment;
 class EquipmentController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listado de equipos. Se pagina sólo cuando llega `limit`.
      */
-    public function index()
+    public function index(EquipmentIndexRequest $request)
     {
         try {
-            $equipments = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail'])->paginate();
-            $data = new PaginatedEquipmentResource($equipments);
+            $query = Equipment::with(['brand', 'user', 'deliveryDetail.returnDetail']);
+
+            $data = $this->paginateOrAll($query, $request, PaginatedEquipmentResource::class, EquipmentResource::class);
 
             return ResponseHandler::success($data, 'Equipos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

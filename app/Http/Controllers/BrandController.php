@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Brand\BrandIndexRequest;
 use App\Http\Requests\Brand\BrandRequest;
 use App\Http\Resources\PaginatedBrandResource;
 use App\Models\Brand;
@@ -11,15 +12,14 @@ use App\Models\Brand;
 class BrandController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listado de marcas. Se pagina sólo cuando llega `limit`.
      */
-    public function index()
+    public function index(BrandIndexRequest $request)
     {
         try {
-            $brands = Brand::paginate();
-            $data = new PaginatedBrandResource($brands);
+            $data = $this->paginateOrAll(Brand::query(), $request, PaginatedBrandResource::class);
 
-            return ResponseHandler::success($brands, 'Marcas Obtenidas Correctamente', 200);
+            return ResponseHandler::success($data, 'Marcas Obtenidas Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

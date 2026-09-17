@@ -6,11 +6,11 @@ use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateDeliveryDocumentDetailRequest;
+use App\Http\Requests\DeliveryDocumentDetailIndexRequest;
 use App\Http\Requests\UpdateDeliveryDocumentDetailRequest;
 use App\Http\Resources\DeliveryDocumentDetailResource;
 use App\Http\Resources\PaginatedDeliveryDocumentDetailResource;
 use App\Models\DeliveryDocumentDetail;
-use Illuminate\Http\Request;
 
 class DeliveryDocumentDetailController extends Controller
 {
@@ -24,26 +24,28 @@ class DeliveryDocumentDetailController extends Controller
         'returnDetail',
     ];
 
-    public function index(Request $request)
+    /**
+     * Listado de detalles de entrega. Acepta los filtros `deliveryDocumentId`,
+     * `equipmentId` y `pending`; se pagina sólo cuando llega `limit`.
+     */
+    public function index(DeliveryDocumentDetailIndexRequest $request)
     {
         try {
             $query = DeliveryDocumentDetail::with(self::RELATIONS);
 
-            if ($request->query('deliveryDocumentId')) {
-                $query->where('delivery_document_id', $request->query('deliveryDocumentId'));
+            if ($request->validated('deliveryDocumentId')) {
+                $query->where('delivery_document_id', $request->validated('deliveryDocumentId'));
             }
 
-            if ($request->query('equipmentId')) {
-                $query->where('equipment_id', $request->query('equipmentId'));
+            if ($request->validated('equipmentId')) {
+                $query->where('equipment_id', $request->validated('equipmentId'));
             }
 
-            if ($request->query('pending')) {
+            if ($request->boolean('pending')) {
                 $query->whereDoesntHave('returnDetail');
             }
 
-            $delivery_document_details = $query->paginate();
-
-            $data = new PaginatedDeliveryDocumentDetailResource($delivery_document_details);
+            $data = $this->paginateOrAll($query, $request, PaginatedDeliveryDocumentDetailResource::class, DeliveryDocumentDetailResource::class);
 
             return ResponseHandler::success($data, 'Detalles de Documento de Entregas Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {

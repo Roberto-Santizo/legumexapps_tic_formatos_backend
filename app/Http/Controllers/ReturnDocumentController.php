@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Errors\NotAcceptable;
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
 use App\Http\Requests\CreateReturnDocumentRequest;
 use App\Http\Requests\ReturnDocumentIndexRequest;
 use App\Http\Requests\UpdateReturnDocumentRequest;
+use App\Http\Resources\PaginatedReturnDocumentResource;
 use App\Http\Resources\ReturnDocumentResource;
 use App\Interfaces\Storage\ImageStorageServiceInterface;
+use App\Models\DeliveryDocument;
 use App\Models\ReturnDocument;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Errors\NotAcceptable;
-use App\Http\Resources\PaginatedReturnDocumentResource;
-use App\Models\DeliveryDocument;
 
 class ReturnDocumentController extends Controller
 {
@@ -33,12 +33,13 @@ class ReturnDocumentController extends Controller
 
     /**
      * Listado de devoluciones. Acepta los filtros `deliveryDocumentId` y
-     * `employeeId`.
+     * `employeeId`. Devuelve de la más reciente a la más antigua y se pagina
+     * sólo cuando llega `limit`.
      */
     public function index(ReturnDocumentIndexRequest $request)
     {
         try {
-            $query = ReturnDocument::with(self::RELATIONS);
+            $query = ReturnDocument::with(self::RELATIONS)->orderByDesc('id');
 
             if ($request->validated('deliveryDocumentId')) {
                 $query->where('delivery_document_id', $request->validated('deliveryDocumentId'));
@@ -52,8 +53,7 @@ class ReturnDocumentController extends Controller
                 });
             }
 
-            $return_documents = $query->paginate();
-            $data = new PaginatedReturnDocumentResource($return_documents);
+            $data = $this->paginateOrAll($query, $request, PaginatedReturnDocumentResource::class, ReturnDocumentResource::class);
 
             return ResponseHandler::success($data, 'Devolución de Documentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
@@ -82,7 +82,6 @@ class ReturnDocumentController extends Controller
                 throw new NotAcceptable('El documento de entrega ya fue devuelto por completo');
             }
 
-
             $data['responsable_signature'] = $imageStorage->store($request->file('responsable_signature'));
             $data['administrador_signature'] = $imageStorage->store($request->file('administrador_signature'));
 
@@ -96,7 +95,6 @@ class ReturnDocumentController extends Controller
             return ResponseHandler::error($th);
         }
     }
-
 
     /**
      * Display the specified resource.

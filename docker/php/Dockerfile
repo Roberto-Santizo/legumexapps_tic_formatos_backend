@@ -114,7 +114,11 @@ RUN su-exec www-data php artisan package:discover --ansi --no-interaction
 
 # Valores por defecto de lo que NO es secreto ni depende del entorno. Todo lo
 # demas (DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD, APP_KEY, JWT_SECRET,
-# APP_URL, ADMIN_*) se pasa con `docker run -e VAR=valor` o `--env-file`.
+# APP_URL, ADMIN_*, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET) se
+# pasa con `docker run -e VAR=valor` o `--env-file`.
+#
+# Las firmas van a la cubeta S3 (SIGNATURES_DISK=s3). Con SIGNATURES_DISK=public
+# se guardan en storage/app/public/signatures y no hacen falta las AWS_*.
 ENV APP_ENV=production \
     APP_DEBUG=false \
     APP_LOCALE=en \
@@ -125,10 +129,13 @@ ENV APP_ENV=production \
     SESSION_DRIVER=database \
     CACHE_STORE=database \
     QUEUE_CONNECTION=database \
-    FILESYSTEM_DISK=local
+    FILESYSTEM_DISK=local \
+    SIGNATURES_DISK=s3 \
+    AWS_DEFAULT_REGION=us-east-1 \
+    AWS_USE_PATH_STYLE_ENDPOINT=false
 
-# Firmas subidas (storage/app/public), sesiones y logs: montar un volumen aqui
-# para no perderlas al recrear el contenedor.
+# Sesiones, logs y (solo con SIGNATURES_DISK=public) las firmas subidas: montar
+# un volumen aqui para no perderlas al recrear el contenedor.
 VOLUME ["/var/www/html/storage"]
 
 EXPOSE 80

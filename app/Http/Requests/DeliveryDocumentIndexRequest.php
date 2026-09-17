@@ -3,25 +3,16 @@
 namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class DeliveryDocumentIndexRequest extends FormRequest
+class DeliveryDocumentIndexRequest extends PaginatedIndexRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
     /**
      * Filtros opcionales de `GET /delivery_documents`.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
-    public function rules(): array
+    protected function filterRules(): array
     {
         return [
             'employeeId' => ['nullable', 'exists:employees,id'],
@@ -33,7 +24,7 @@ class DeliveryDocumentIndexRequest extends FormRequest
     /**
      * @return array<string, string>
      */
-    public function messages(): array
+    protected function filterMessages(): array
     {
         return [
             'employeeId.exists' => 'El empleado seleccionado no existe',

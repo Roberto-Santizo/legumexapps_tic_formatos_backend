@@ -15,7 +15,8 @@ su-exec www-data php artisan migrate --force --no-interaction
 # cada arranque no duplica ni pisa nada.
 su-exec www-data php artisan db:seed --class='Database\Seeders\InitialUserSeeder' --force --no-interaction
 
-# public/storage -> storage/app/public: sin esto nginx no sirve las firmas.
+# public/storage -> storage/app/public: sin esto nginx no sirve las firmas
+# cuando SIGNATURES_DISK=public. Con s3 no estorba, asi que se crea siempre.
 su-exec www-data php artisan storage:link --force --no-interaction
 
 if [ "$APP_ENV" != "local" ]; then

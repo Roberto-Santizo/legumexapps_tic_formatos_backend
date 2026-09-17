@@ -30,6 +30,14 @@ services:
             ADMIN_NAME: "${ADMIN_NAME:-Administrador}"
             ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
             ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
+            SIGNATURES_DISK: "${SIGNATURES_DISK:-s3}"
+            AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+            AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+            AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-us-east-1}"
+            AWS_BUCKET: "${AWS_BUCKET}"
+            AWS_URL: "${AWS_URL}"
+            AWS_ENDPOINT: "${AWS_ENDPOINT}"
+            AWS_USE_PATH_STYLE_ENDPOINT: "${AWS_USE_PATH_STYLE_ENDPOINT:-false}"
         volumes:
             - app_storage:/var/www/html/storage
         # Para un postgres corriendo en la máquina anfitriona usa

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Errors\NotFoundError;
 use App\Helpers\ResponseHandler;
+use App\Http\Requests\Department\DepartmentIndexRequest;
 use App\Http\Requests\Department\DepartmentRequest;
 use App\Http\Resources\PaginatedDepartmentResource;
 use App\Models\Department;
@@ -11,15 +12,14 @@ use App\Models\Department;
 class DepartmentController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Listado de departamentos. Se pagina sólo cuando llega `limit`.
      */
-    public function index()
+    public function index(DepartmentIndexRequest $request)
     {
         try {
-            $departments = Department::paginate();
-            $data = new PaginatedDepartmentResource($departments);
+            $data = $this->paginateOrAll(Department::query(), $request, PaginatedDepartmentResource::class);
 
-            return ResponseHandler::success($departments, 'Departamentos Obtenidos Correctamente', 200);
+            return ResponseHandler::success($data, 'Departamentos Obtenidos Correctamente', 200);
         } catch (\Throwable $th) {
             return ResponseHandler::error($th);
         }

@@ -71,7 +71,7 @@ Before relying on a package's API, confirm its installed version:
 - Always use curly braces for control structures, even for single-line bodies.
 - Use PHP 8 constructor property promotion: `public function __construct(public GitHub $github) { }`. Do not leave empty zero-parameter `__construct()` methods unless the constructor is private.
 - Use explicit return type declarations and type hints for all method parameters: `function isAccessible(User $user, ?string $path = null): bool`
-- Use TitleCase for Enum keys: `FavoritePerson`, `BestLake`, `Monthly`.
+- Follow existing application Enum naming conventions.
 - Prefer PHPDoc blocks over inline comments. Only add inline comments for exceptionally complex logic.
 - Use array shape type definitions in PHPDoc blocks.
 
@@ -80,6 +80,15 @@ Before relying on a package's API, confirm its installed version:
 # Deployment
 
 - Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
+
+=== tests rules ===
+
+# Test Enforcement
+
+- Test every code change by adding or updating a test.
+- Run the affected tests and ensure they pass.
+- Test the changed behavior and its important failure modes, but do not add tests beyond them.
+- Read the `testing-best-practices` skill before writing tests.
 
 === laravel/core rules ===
 
@@ -151,11 +160,11 @@ php artisan test --compact          # suite completa
 vendor/bin/pest tests/Feature/AssignmentFlowTest.php
 vendor/bin/pest --filter='crea una marca'
 vendor/bin/pint --dirty --format agent   # obligatorio tras tocar PHP
-php artisan storage:link            # necesario para servir las firmas
+php artisan storage:link            # sólo con SIGNATURES_DISK=public (firmas en disco local)
 docker compose up -d                # solo backend (nginx + php-fpm + queue + scheduler); la BD es externa via DB_*
 ```
 
-Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta y `ReglasNegocioTest` una regla de negocio por test. La suite completa pasa (80/80).
+Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `RefreshDatabase` globalmente — cada archivo de Feature hace `uses(RefreshDatabase::class)` explícitamente. `AssignmentFlowTest` cubre el flujo entrega → devolución parcial de punta a punta y `ReglasNegocioTest` una regla de negocio por test. `ImageStorageServiceTest` cubre el servicio de firmas, incluido que escribe en el disco configurado. La suite completa pasa (96/96). Los helpers `ultimaEntrega()`/`data.0.id` de los tests dependen de que `GET /delivery_documents` y `GET /return_documents` devuelvan del más reciente al más antiguo (`orderByDesc('id')` en el `index`); si se quita ese orden, RN-08 y RN-13 se rompen.
 
 ## Arquitectura
 
@@ -171,9 +180,9 @@ Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `Refres
 
 **Resources.** `app/Http/Resources/` transforma las salidas de employees, equipments, los cuatro recursos de documentos y `AssignmentResource` (un `DeliveryDocumentDetail` con su entrega y su devolución; la usan `/equipments/{id}/history` y `/employees/{id}/equipments`). Formatean para el cliente (fechas `d-m-Y h:m:s A`, `original` → `Nuevo`/`Usado`, `location` vía `Plant::tryFrom()->label()`). Los catálogos simples devuelven el modelo directo.
 
-**Servicios.** Auth (`AuthServiceInterface` → `AuthService`, en `App\Providers\Auth\AuthProvider`) y Storage (`ImageStorageServiceInterface` → `ImageStorageService`, en `App\Providers\Storage\StorageProvider`); ambos providers están en `bootstrap/providers.php`. Se inyectan como parámetro del método del controller.
+**Servicios.** Auth (`AuthServiceInterface` → `AuthService`, en `App\Providers\Auth\AuthProvider`) y Storage (`ImageStorageServiceInterface` → `ImageStorageService`, en `App\Providers\Storage\StorageProvider`, que lo construye con el disco `config('filesystems.signatures')`); ambos providers están en `bootstrap/providers.php`. Se inyectan como parámetro del método del controller.
 
-**Firmas.** `responsable_signature` y `administrador_signature` llegan como archivo (multipart) y se guardan en el disco `public`, carpeta `signatures/`, con nombre uuid. El servicio acepta jpg/png/webp hasta 5 MB y lanza `BadRequestError`; los FormRequest son más estrictos (`mimes:png,jpg,jpeg`, `max:2048` KB). En BD y en los Resources se guarda/devuelve la **ruta relativa**, no la URL.
+**Firmas.** `responsable_signature` y `administrador_signature` llegan como archivo (multipart) y se guardan en la carpeta `signatures/` con nombre uuid dentro del disco `filesystems.signatures` (`SIGNATURES_DISK`, por defecto `s3` → cubeta AWS vía `league/flysystem-aws-s3-v3`; `public` para local sin credenciales). Los tests fijan `SIGNATURES_DISK=public` en `phpunit.xml` y usan `Storage::fake('public')`. Los controllers no saben del disco: sólo llaman a `$imageStorage->store()`. El servicio acepta jpg/png/webp hasta 5 MB y lanza `BadRequestError`; los FormRequest son más estrictos (`mimes:png,jpg,jpeg`, `max:2048` KB). En BD y en los Resources se guarda/devuelve la **ruta relativa**, no la URL.
 
 **Documentos.** `POST /delivery_documents` recibe cabecera + `items[]` (`equipment_id`, `observations`) y `POST /return_documents` recibe cabecera + `items[]` (`delivery_document_detail_id`, `observations`); ambos crean documento y detalles dentro de `DB::transaction` y responden `data: true`. Las fechas las pone el servidor con `Carbon::now()` y `user_id` sale de `auth()->user()`. La devolución puede ser **parcial**: se devuelven sólo algunos detalles y la entrega queda en estado `parcial`. El estado (`pendiente`/`parcial`/`devuelto`) lo calcula `DeliveryDocument::status()` sobre sus detalles, no se guarda; `GET /delivery_documents` lo filtra con `?status=` (más `activo` = pendiente + parcial). Un equipo está asignado mientras exista un `DeliveryDocumentDetail` suyo sin `ReturnDocumentDetail`: eso es lo que miran los scopes `Equipment::available()`/`assigned()` y `DeliveryDocument::pendingDetails()`.
 
@@ -193,4 +202,4 @@ Tests: sqlite en memoria (`phpunit.xml`). `tests/Pest.php` **no** aplica `Refres
 
 ## Docker y despliegue
 
-`docker/php/Dockerfile` produce **una sola imagen** (target `app`): nginx + php-fpm + worker de cola + scheduler bajo supervisor (`docker/supervisor/supervisord.conf`), **sin base de datos**. Toda la configuración entra por variables de entorno (`docker run -e ...` o `--env-file`); la imagen no lee ningún `.env`. `docker/php/entrypoint.sh` aborta si faltan `DB_HOST`, `DB_DATABASE`, `DB_USERNAME` o `DB_PASSWORD`, y genera `APP_KEY`/`JWT_SECRET` efímeros con advertencia si no vienen. `app-start.sh` espera a la BD externa, migra, corre `InitialUserSeeder`, hace `storage:link` y cachea antes de arrancar php-fpm; queue y scheduler esperan a `/run/app-ready`. `docker-compose.yml` sólo envuelve ese contenedor pasando las mismas variables desde el `.env`/shell. La tabla completa de variables está en `README.md`. Push a `main` dispara `.github/workflows/docker-publish.yml`, que autoincrementa el tag `v0.0.X` y publica la imagen en Docker Hub como `:0.0.X` y `:latest`.
+`docker/php/Dockerfile` produce **una sola imagen** (target `app`): nginx + php-fpm + worker de cola + scheduler bajo supervisor (`docker/supervisor/supervisord.conf`), **sin base de datos**. Toda la configuración entra por variables de entorno (`docker run -e ...` o `--env-file`); la imagen no lee ningún `.env`. `docker/php/entrypoint.sh` aborta si faltan `DB_HOST`, `DB_DATABASE`, `DB_USERNAME` o `DB_PASSWORD` (y, con `SIGNATURES_DISK=s3`, `AWS_BUCKET` o `AWS_DEFAULT_REGION`; sin `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` sólo advierte y asume rol IAM), y genera `APP_KEY`/`JWT_SECRET` efímeros con advertencia si no vienen. El `Dockerfile` fija por `ENV` `SIGNATURES_DISK=s3`, `AWS_DEFAULT_REGION=us-east-1` y `AWS_USE_PATH_STYLE_ENDPOINT=false`; el volumen de `storage` sólo guarda firmas con `SIGNATURES_DISK=public`. `app-start.sh` espera a la BD externa, migra, corre `InitialUserSeeder`, hace `storage:link` y cachea antes de arrancar php-fpm; queue y scheduler esperan a `/run/app-ready`. `docker-compose.yml` sólo envuelve ese contenedor pasando las mismas variables desde el `.env`/shell. La tabla completa de variables está en `README.md`. Push a `main` dispara `.github/workflows/docker-publish.yml`, que autoincrementa el tag `v0.0.X` y publica la imagen en Docker Hub como `:0.0.X` y `:latest`.
