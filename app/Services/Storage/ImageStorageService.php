@@ -28,13 +28,26 @@ class ImageStorageService implements ImageStorageServiceInterface
     private const MAX_SIZE_IN_BYTES = 5242880;
 
     /**
+     * Opciones de escritura: las firmas se sirven por URL directa, así que se
+     * suben públicas. En S3 `ACL=public-read` se manda explícito (sin él el
+     * adapter sube con `private`); `visibility` cubre el disco `public` local.
+     *
+     * @var array<string, string>
+     */
+    private const WRITE_OPTIONS = [
+        'visibility' => 'public',
+        'ACL' => 'public-read',
+    ];
+
+    /**
      * @param  string  $disk  disco de `config/filesystems.php` donde se guardan las imágenes
      *                        (`StorageProvider` inyecta `filesystems.signatures`).
      */
     public function __construct(private readonly string $disk = 'public') {}
 
     /**
-     * Guarda la imagen en el disco con un nombre uuid y devuelve su ruta relativa.
+     * Guarda la imagen en el disco con un nombre uuid, con lectura pública
+     * (`ACL public-read` en S3), y devuelve su ruta relativa.
      *
      * @return string ruta relativa dentro del disco, p. ej. `signatures/9f8a....png`
      *
@@ -62,7 +75,8 @@ class ImageStorageService implements ImageStorageServiceInterface
         $path = Storage::disk($this->disk)->putFileAs(
             trim($directory, '/'),
             $image,
-            $fileName
+            $fileName,
+            self::WRITE_OPTIONS
         );
 
         if (! $path) {

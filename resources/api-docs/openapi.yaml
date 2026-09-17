@@ -1769,8 +1769,8 @@ paths:
                   - id: 1
                     location: Planta Tejar
                     delivery_date: 04-09-2026 10:09:33 AM
-                    responsable_signature: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
-                    administrador_signature: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+                    responsable_signature: https://mi-cubeta.s3.amazonaws.com/signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+                    administrador_signature: https://mi-cubeta.s3.amazonaws.com/signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
                     employee_id: 3
                     employee_name: Roberto Santizo
                     employee_department: Tecnología de la Información
@@ -1908,8 +1908,8 @@ paths:
                   id: 1
                   location: Planta Tejar
                   delivery_date: 04-09-2026 10:09:33 AM
-                  responsable_signature: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
-                  administrador_signature: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+                  responsable_signature: https://mi-cubeta.s3.amazonaws.com/signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+                  administrador_signature: https://mi-cubeta.s3.amazonaws.com/signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
                   employee_id: 3
                   employee_name: Roberto Santizo
                   employee_department: Tecnología de la Información
@@ -2598,8 +2598,8 @@ paths:
                 data:
                   - id: 1
                     return_date: 06-09-2026 09:15:02 AM
-                    responsable_signature: signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
-                    administrador_signature: signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
+                    responsable_signature: https://mi-cubeta.s3.amazonaws.com/signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
+                    administrador_signature: https://mi-cubeta.s3.amazonaws.com/signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
                     employee_id: 3
                     employee_name: Roberto Santizo
                     employee_department: Tecnología de la Información
@@ -3531,13 +3531,16 @@ components:
         responsable_signature:
           type: string
           description: |
-            Ruta relativa de la firma del responsable dentro del disco `public`.
-          example: signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
+            URL pública de la firma del responsable en el disco de firmas
+            (`SIGNATURES_DISK`: con `s3` se arma a partir de `AWS_BUCKET`/`AWS_DEFAULT_REGION`
+            o `AWS_URL`; con `public` a partir de `APP_URL/storage`).
+          example: https://mi-cubeta.s3.amazonaws.com/signatures/9f8a1c2e-4b7d-4c1a-9d2e-3f5a6b7c8d90.png
         administrador_signature:
           type: string
           description: |
-            Ruta relativa de la firma del administrador dentro del disco `public`.
-          example: signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
+            URL pública de la firma del administrador en el disco de firmas
+            (misma regla que `responsable_signature`).
+          example: https://mi-cubeta.s3.amazonaws.com/signatures/2b7d4e6f-1a3c-4e5b-8d9f-0a1b2c3d4e5f.png
         employee_id:
           type: integer
           description: Empleado que recibe el equipo (`employees.id`).
@@ -3885,12 +3888,17 @@ components:
           example: 06-09-2026 09:15:02 AM
         responsable_signature:
           type: string
-          description: Ruta relativa de la firma del responsable en el disco `public`.
-          example: signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
+          description: |
+            URL pública de la firma del responsable en el disco de firmas
+            (`SIGNATURES_DISK`: con `s3` se arma a partir de `AWS_BUCKET`/`AWS_DEFAULT_REGION`
+            o `AWS_URL`; con `public` a partir de `APP_URL/storage`).
+          example: https://mi-cubeta.s3.amazonaws.com/signatures/7c1e9d4a-5b2f-4e8a-9c3d-1f2a3b4c5d6e.png
         administrador_signature:
           type: string
-          description: Ruta relativa de la firma del administrador en el disco `public`.
-          example: signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
+          description: |
+            URL pública de la firma del administrador en el disco de firmas
+            (misma regla que `responsable_signature`).
+          example: https://mi-cubeta.s3.amazonaws.com/signatures/8d2f0e5b-6c3a-4f9b-8d4e-2a3b4c5d6e7f.png
         employee_id:
           type: integer
           description: Empleado de la entrega relacionada.

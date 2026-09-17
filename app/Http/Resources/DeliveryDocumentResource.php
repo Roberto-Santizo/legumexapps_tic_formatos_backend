@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Enums\Plant;
+use App\Interfaces\Storage\ImageStorageServiceInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -21,8 +22,8 @@ class DeliveryDocumentResource extends JsonResource
             'id' => $this->id,
             'location' => Plant::tryFrom((int) $this->location)?->label() ?? 'Planta desconocida',
             'delivery_date' => $this->delivery_date->format('d-m-Y h:m:s A'),
-            'responsable_signature' => $this->responsable_signature,
-            'administrador_signature' => $this->administrador_signature,
+            'responsable_signature' => $this->signatureUrl($this->responsable_signature),
+            'administrador_signature' => $this->signatureUrl($this->administrador_signature),
             'employee_id' => $this->employee->id,
             'employee_name' => $this->employee->name,
             'employee_department' => $this->employee->department->name,
@@ -34,5 +35,19 @@ class DeliveryDocumentResource extends JsonResource
             'pending_items_count' => $pending->count(),
             'items' => DeliveryDocumentDetailResource::collection($this->details),
         ];
+    }
+
+    /**
+     * Convierte la ruta relativa de una firma en la URL pública del disco
+     * `filesystems.signatures` (en S3 se arma con `AWS_BUCKET`/`AWS_DEFAULT_REGION`
+     * o `AWS_URL`; en `public` con `APP_URL/storage`).
+     */
+    private function signatureUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+
+        return app(ImageStorageServiceInterface::class)->url($path);
     }
 }

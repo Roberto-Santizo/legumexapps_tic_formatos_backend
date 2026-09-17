@@ -175,6 +175,41 @@ it('filtra los documentos de entrega por empleado y por estado', function () {
         ->assertJsonPath('message', 'El estado debe ser pendiente, parcial, devuelto o activo');
 });
 
+it('devuelve las firmas de entrega y devolución como URL del disco de firmas', function () {
+    Storage::fake('public');
+
+    $headers = ['Authorization' => 'Bearer '.tokenDeAsignaciones()];
+    ['employee' => $employee, 'laptop' => $laptop] = escenarioDeAsignacion();
+
+    $this->post('/api/delivery_documents', [
+        'location' => 1,
+        'employee_id' => $employee->id,
+        'responsable_signature' => UploadedFile::fake()->image('responsable.png', 120, 60),
+        'administrador_signature' => UploadedFile::fake()->image('administrador.png', 160, 80),
+        'items' => [['equipment_id' => $laptop->id]],
+    ], $headers)->assertStatus(201);
+
+    $delivery = $this->getJson('/api/delivery_documents', $headers)->assertOk()->json('data.0');
+    $baseUrl = Storage::disk('public')->url('');
+
+    expect($delivery['responsable_signature'])
+        ->toStartWith($baseUrl.'signatures/')
+        ->toEndWith('.png')
+        ->and($delivery['administrador_signature'])->toStartWith($baseUrl.'signatures/');
+
+    $this->post('/api/return_documents', [
+        'delivery_document_id' => $delivery['id'],
+        'responsable_signature' => UploadedFile::fake()->image('responsable.png', 120, 60),
+        'administrador_signature' => UploadedFile::fake()->image('administrador.png', 160, 80),
+        'items' => [['delivery_document_detail_id' => $delivery['items'][0]['id']]],
+    ], $headers)->assertStatus(201);
+
+    $return = $this->getJson('/api/return_documents', $headers)->assertOk()->json('data.0');
+
+    expect($return['responsable_signature'])->toStartWith($baseUrl.'signatures/')
+        ->and($return['administrador_signature'])->toStartWith($baseUrl.'signatures/');
+});
+
 it('rechaza sin token las rutas nuevas de asignación', function (string $method, string $uri) {
     $this->json($method, $uri)->assertStatus(401);
 })->with([

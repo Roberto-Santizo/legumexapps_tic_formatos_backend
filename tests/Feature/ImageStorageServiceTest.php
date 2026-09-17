@@ -64,3 +64,12 @@ it('guarda la firma en el disco configurado en filesystems.signatures', function
     Storage::disk('s3')->assertExists($path);
     Storage::disk('public')->assertMissing($path);
 });
+
+it('sube la firma a s3 con lectura pública (ACL public-read)', function () {
+    config(['filesystems.signatures' => 's3']);
+    Storage::fake('s3');
+
+    $path = app(ImageStorageServiceInterface::class)->store(UploadedFile::fake()->image('firma.png'));
+
+    expect(Storage::disk('s3')->getVisibility($path))->toBe('public');
+});
