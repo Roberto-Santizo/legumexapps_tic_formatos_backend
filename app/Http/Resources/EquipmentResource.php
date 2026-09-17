@@ -19,6 +19,7 @@ class EquipmentResource extends JsonResource
                 'id' => $this->id,
                 'name' => $this->name,
                 'brand' => $this->brand->name,
+                'serie' => $this->serie,
                 'registeredBy' => $this->user->name,
                 'original' => $this->original ? 'Nuevo' : 'Usado',
                 'isAssigned' => $lastDelivery !== null && $lastDelivery->returnDetail === null
