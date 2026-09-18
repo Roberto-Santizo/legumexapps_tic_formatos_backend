@@ -2,32 +2,15 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\EquipmentType;
 use App\Enums\Plant;
 use App\Models\DeliveryDocumentDetail;
-use App\Models\Equipment;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class CreateDeliveryDocumentRequest extends FormRequest
 {
-    /**
-     * RN-02: tipos de los que un empleado sólo puede tener uno a la vez.
-     *
-     * @var array<int, EquipmentType>
-     */
-    private const TIPOS_UNICOS = [
-        EquipmentType::MOUSE,
-        EquipmentType::KEYBOARD,
-        EquipmentType::LAPTOP,
-        EquipmentType::DESKTOP,
-        EquipmentType::HEADSET,
-        EquipmentType::WEBCAM,
-    ];
-
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -82,7 +65,6 @@ class CreateDeliveryDocumentRequest extends FormRequest
     {
         return [
             fn (Validator $validator) => $this->validarEquiposDisponibles($validator),
-            fn (Validator $validator) => $this->validarTiposRepetidos($validator),
             fn (Validator $validator) => $this->validarFirmasDistintas($validator),
         ];
     }
@@ -114,75 +96,6 @@ class CreateDeliveryDocumentRequest extends FormRequest
                 );
             }
         }
-    }
-
-    /**
-     * RN-02: un empleado no puede terminar con dos equipos del mismo tipo.
-     */
-    private function validarTiposRepetidos(Validator $validator): void
-    {
-        $employeeId = $this->input('employee_id');
-        $items = $this->input('items', []);
-
-        if (! $employeeId || $items === []) {
-            return;
-        }
-
-        // Tipos que el empleado ya tiene sin devolver.
-        $tiposVigentes = DeliveryDocumentDetail::query()
-            ->whereDoesntHave('returnDetail')
-            ->whereHas('delivery_documents', function (Builder $document) use ($employeeId) {
-                $document->where('employee_id', $employeeId);
-            })
-            ->with('equipment:id,type')
-            ->get()
-            ->pluck('equipment.type')
-            ->filter()
-            ->all();
-
-        $tiposPorEquipo = Equipment::query()
-            ->whereIn('id', collect($items)->pluck('equipment_id')->filter())
-            ->pluck('type', 'id');
-
-        $tiposEnLaPeticion = [];
-
-        foreach ($items as $index => $item) {
-            $type = $tiposPorEquipo[$item['equipment_id'] ?? null] ?? null;
-
-            if (! $type || ! $this->tieneTopeDeUno($type)) {
-                continue;
-            }
-
-            if (in_array($type, $tiposVigentes)) {
-                $validator->errors()->add(
-                    "items.{$index}.equipment_id",
-                    "El empleado ya tiene asignado un equipo de tipo {$type}"
-                );
-
-                continue;
-            }
-
-            if (in_array($type, $tiposEnLaPeticion)) {
-                $validator->errors()->add(
-                    "items.{$index}.equipment_id",
-                    "No se puede entregar más de un equipo de tipo {$type} en la misma entrega"
-                );
-
-                continue;
-            }
-
-            $tiposEnLaPeticion[] = $type;
-        }
-    }
-
-    /**
-     * RN-02: sólo los tipos de `TIPOS_UNICOS` están limitados a uno por empleado.
-     */
-    private function tieneTopeDeUno(string $type): bool
-    {
-        $equipmentType = EquipmentType::tryFrom($type);
-
-        return $equipmentType !== null && in_array($equipmentType, self::TIPOS_UNICOS, true);
     }
 
     /**

@@ -2,32 +2,15 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\EquipmentType;
 use App\Models\DeliveryDocument;
 use App\Models\DeliveryDocumentDetail;
-use App\Models\Equipment;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class CreateDeliveryDocumentDetailRequest extends FormRequest
 {
-    /**
-     * RN-02: tipos de los que un empleado sólo puede tener uno a la vez.
-     *
-     * @var array<int, EquipmentType>
-     */
-    private const TIPOS_UNICOS = [
-        EquipmentType::MOUSE,
-        EquipmentType::KEYBOARD,
-        EquipmentType::LAPTOP,
-        EquipmentType::DESKTOP,
-        EquipmentType::HEADSET,
-        EquipmentType::WEBCAM,
-    ];
-
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -70,7 +53,6 @@ class CreateDeliveryDocumentDetailRequest extends FormRequest
     {
         return [
             fn (Validator $validator) => $this->validarEquipoDisponible($validator),
-            fn (Validator $validator) => $this->validarTipoRepetido($validator),
             fn (Validator $validator) => $this->validarEntregaAbierta($validator),
         ];
     }
@@ -95,49 +77,6 @@ class CreateDeliveryDocumentDetailRequest extends FormRequest
                 'El equipo ya está asignado en otra entrega y no se ha devuelto'
             );
         }
-    }
-
-    /**
-     * RN-02: el empleado de la entrega no puede terminar con dos equipos del
-     * mismo tipo.
-     */
-    private function validarTipoRepetido(Validator $validator): void
-    {
-        $delivery = DeliveryDocument::find($this->input('delivery_document_id'));
-        $equipment = Equipment::find($this->input('equipment_id'));
-
-        if (! $delivery || ! $equipment || ! $this->tieneTopeDeUno((string) $equipment->type)) {
-            return;
-        }
-
-        $employeeId = $delivery->employee_id;
-
-        $yaTieneElTipo = DeliveryDocumentDetail::query()
-            ->whereDoesntHave('returnDetail')
-            ->whereHas('delivery_documents', function (Builder $document) use ($employeeId) {
-                $document->where('employee_id', $employeeId);
-            })
-            ->whereHas('equipment', function (Builder $item) use ($equipment) {
-                $item->where('type', $equipment->type);
-            })
-            ->exists();
-
-        if ($yaTieneElTipo) {
-            $validator->errors()->add(
-                'equipment_id',
-                "El empleado ya tiene asignado un equipo de tipo {$equipment->type}"
-            );
-        }
-    }
-
-    /**
-     * RN-02: sólo los tipos de `TIPOS_UNICOS` están limitados a uno por empleado.
-     */
-    private function tieneTopeDeUno(string $type): bool
-    {
-        $equipmentType = EquipmentType::tryFrom($type);
-
-        return $equipmentType !== null && in_array($equipmentType, self::TIPOS_UNICOS, true);
     }
 
     /**

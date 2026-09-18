@@ -267,7 +267,6 @@ sequenceDiagram
 
 ## 10. Lo que este flujo **todavía no valida**
 
-Los endpoints cubren el proceso, pero las reglas de negocio (no asignar dos
-equipos del mismo tipo al mismo empleado, no entregar equipo ya asignado, no
-devolver dos veces el mismo equipo, etc.) **no están implementadas**. Están
+Los endpoints cubren el proceso, pero las reglas de negocio (no entregar
+equipo ya asignado, no devolver dos veces el mismo equipo, etc.) **no están implementadas**. Están
 descritas, con el código propuesto, en [`reglas.md`](reglas.md).

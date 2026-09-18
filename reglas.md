@@ -73,7 +73,7 @@ Varias reglas se repiten entre `POST /delivery_documents` y
 ### 0.5 Concurrencia
 
 Dos peticiones simultáneas pueden pasar la misma validación y entregar el mismo
-equipo dos veces. Para las reglas RN-01, RN-02 y RN-10:
+equipo dos veces. Para las reglas RN-01 y RN-10:
 
 - Ejecutar la comprobación **dentro** de la `DB::transaction` del controller, o
 - Apoyarse en el índice único de RN-25 (`return_document_details`), que sí es
@@ -86,7 +86,7 @@ equipo dos veces. Para las reglas RN-01, RN-02 y RN-10:
 | ID | Regla | Dónde | Código |
 |---|---|---|---|
 | RN-01 | Un equipo con entrega activa no se puede volver a entregar | `CreateDeliveryDocumentRequest`, `CreateDeliveryDocumentDetailRequest` | 422 |
-| RN-02 | Un empleado no puede tener dos equipos del mismo tipo | idem | 422 |
+| RN-02 | ~~Un empleado no puede tener dos equipos del mismo tipo~~ **Eliminada** (2026-09-17): un empleado puede tener varios equipos del mismo tipo (p. ej. dos monitores) | — | — |
 | RN-03 | No repetir el mismo equipo dentro de la misma entrega | `CreateDeliveryDocumentRequest` | 422 |
 | RN-04 | `location` debe ser una planta válida | `CreateDeliveryDocumentRequest`, `UpdateDeliveryDocumentRequest` | 422 |
 | RN-05 | No se entrega equipo dado de baja | `CreateDeliveryDocumentRequest` | 422 |
@@ -117,9 +117,9 @@ Además, desde antes: al menos un item por documento, firmas obligatorias
 
 **Notas de implementación:**
 
-- **RN-02** aplica sólo a los tipos de `TIPOS_UNICOS` (mouse, teclado, laptop,
-  desktop, diadema, webcam). Los demás tipos (cable, adaptador, cargador…) no
-  tienen tope. La constante está en los dos FormRequests de entrega.
+- **RN-02** se eliminó a petición del negocio: un empleado puede tener varios
+  equipos del mismo tipo (p. ej. dos monitores). Ya no hay `TIPOS_UNICOS` ni
+  `validarTiposRepetidos()` en los FormRequests de entrega.
 - **RN-11** quedó como última defensa: RN-08 y RN-10 rechazan antes cada detalle
   con `422`, así que el `406` del controller sólo se alcanza en una carrera entre
   dos peticiones simultáneas.
@@ -212,102 +212,14 @@ devolverlo y volver a entregarlo → `201`.
 
 ---
 
-### RN-02 · Un empleado no puede tener dos equipos del mismo tipo
+### RN-02 · ~~Un empleado no puede tener dos equipos del mismo tipo~~ (eliminada)
 
-**Por qué.** No tiene sentido asignar dos mouses o dos teclados a la misma
-persona. Hay que mirar **dos fuentes**: lo que ya tiene vigente y lo que viene en
-la misma petición.
-
-**Dónde.** `CreateDeliveryDocumentRequest` y `CreateDeliveryDocumentDetailRequest`.
-
-```php
-use App\Models\DeliveryDocumentDetail;
-use App\Models\Equipment;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Validator;
-
-/**
- * RN-02: un empleado no puede terminar con dos equipos del mismo tipo.
- */
-private function validarTiposRepetidos(Validator $validator): void
-{
-    $employeeId = $this->input('employee_id');
-    $items = $this->input('items', []);
-
-    if (! $employeeId || $items === []) {
-        return;
-    }
-
-    // Tipos que el empleado ya tiene sin devolver.
-    $tiposVigentes = DeliveryDocumentDetail::query()
-        ->whereDoesntHave('returnDetail')
-        ->whereHas('delivery_documents', function (Builder $document) use ($employeeId) {
-            $document->where('employee_id', $employeeId);
-        })
-        ->with('equipment:id,type')
-        ->get()
-        ->pluck('equipment.type')
-        ->filter()
-        ->all();
-
-    $tiposPorEquipo = Equipment::query()
-        ->whereIn('id', collect($items)->pluck('equipment_id')->filter())
-        ->pluck('type', 'id');
-
-    $tiposEnLaPeticion = [];
-
-    foreach ($items as $index => $item) {
-        $type = $tiposPorEquipo[$item['equipment_id'] ?? null] ?? null;
-
-        if (! $type) {
-            continue;
-        }
-
-        if (in_array($type, $tiposVigentes)) {
-            $validator->errors()->add(
-                "items.{$index}.equipment_id",
-                "El empleado ya tiene asignado un equipo de tipo {$type}"
-            );
-
-            continue;
-        }
-
-        if (in_array($type, $tiposEnLaPeticion)) {
-            $validator->errors()->add(
-                "items.{$index}.equipment_id",
-                "No se puede entregar más de un equipo de tipo {$type} en la misma entrega"
-            );
-
-            continue;
-        }
-
-        $tiposEnLaPeticion[] = $type;
-    }
-}
-```
-
-**Decisión pendiente del negocio:** ¿aplica a *todos* los tipos? Si un empleado
-puede tener dos monitores o dos cables, define la lista de tipos con tope 1:
-
-```php
-use App\Enums\EquipmentType;
-
-/**
- * Tipos de los que un empleado sólo puede tener uno a la vez.
- *
- * @var array<int, EquipmentType>
- */
-private const TIPOS_UNICOS = [
-    EquipmentType::MOUSE,
-    EquipmentType::KEYBOARD,
-    EquipmentType::LAPTOP,
-    EquipmentType::DESKTOP,
-    EquipmentType::HEADSET,
-    EquipmentType::WEBCAM,
-];
-```
-
-y filtra `if (! in_array(EquipmentType::from($type), self::TIPOS_UNICOS)) { continue; }`.
+**Eliminada el 2026-09-17.** El negocio confirmó que un empleado sí puede tener
+varios equipos del mismo tipo (por ejemplo, dos monitores), así que la
+validación `validarTiposRepetidos()` / `validarTipoRepetido()` y la constante
+`TIPOS_UNICOS` se quitaron de `CreateDeliveryDocumentRequest` y
+`CreateDeliveryDocumentDetailRequest`. RN-01 y RN-03 siguen impidiendo entregar
+el mismo equipo dos veces.
 
 ---
 
@@ -940,7 +852,7 @@ Ojo: hay que limpiar duplicados existentes antes de aplicarla en producción.
 
 1. **RN-25 y RN-19/20/21** (índices únicos): son migraciones, no rompen nada y
    ponen piso a lo demás.
-2. **RN-01, RN-02, RN-03** (entrega): son las reglas que el negocio pidió
+2. **RN-01, RN-03** (entrega): son las reglas que el negocio pidió
    primero y las que más ensucian el inventario.
 3. **RN-08, RN-09, RN-10, RN-11** (devolución): cierran el ciclo.
 4. **RN-14, RN-15, RN-16** (borrados y correcciones).
@@ -963,8 +875,7 @@ ReglasEntregaTest`), siguiendo el estilo de `AssignmentFlowTest.php`:
 
 Resueltas al implementar (confirmar con el negocio si alguna no aplica):
 
-1. RN-02: el tope de "uno por tipo" aplica sólo a `TIPOS_UNICOS`, no a todos los
-   tipos.
+1. RN-02: eliminada; un empleado puede tener varios equipos del mismo tipo.
 2. RN-04: el enum `Plant` tiene dos plantas, Tejar (`1`) y Parramos (`2`).
 3. RN-07: sólo `admin` emite, corrige y elimina documentos; las lecturas quedan
    abiertas a cualquier usuario autenticado.

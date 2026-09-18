@@ -169,7 +169,7 @@ it('RN-01 vuelve a entregar el equipo después de devolverlo', function () {
     entregar($headers, $otro->id, [['equipment_id' => $laptop->id]])->assertStatus(201);
 });
 
-it('RN-02 no entrega dos equipos del mismo tipo en la misma entrega', function () {
+it('RN-02 permite entregar dos equipos del mismo tipo en la misma entrega', function () {
     Storage::fake('public');
     $headers = headersDeReglas();
     ['employee' => $employee, 'laptop' => $laptop, 'otraLaptop' => $otraLaptop] = escenarioDeReglas();
@@ -177,32 +177,17 @@ it('RN-02 no entrega dos equipos del mismo tipo en la misma entrega', function (
     entregar($headers, $employee->id, [
         ['equipment_id' => $laptop->id],
         ['equipment_id' => $otraLaptop->id],
-    ])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['items.1.equipment_id' => 'No se puede entregar más de un equipo de tipo laptop en la misma entrega']);
+    ])->assertStatus(201);
 });
 
-it('RN-02 no entrega un tipo que el empleado ya tiene vigente', function () {
+it('RN-02 permite entregar un tipo que el empleado ya tiene vigente', function () {
     Storage::fake('public');
     $headers = headersDeReglas();
     ['employee' => $employee, 'laptop' => $laptop, 'otraLaptop' => $otraLaptop] = escenarioDeReglas();
 
     entregar($headers, $employee->id, [['equipment_id' => $laptop->id]])->assertStatus(201);
 
-    entregar($headers, $employee->id, [['equipment_id' => $otraLaptop->id]])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['items.0.equipment_id' => 'El empleado ya tiene asignado un equipo de tipo laptop']);
-});
-
-it('RN-02 permite dos equipos de un tipo sin tope', function () {
-    Storage::fake('public');
-    $headers = headersDeReglas();
-    ['employee' => $employee, 'cable' => $cable, 'otroCable' => $otroCable] = escenarioDeReglas();
-
-    entregar($headers, $employee->id, [
-        ['equipment_id' => $cable->id],
-        ['equipment_id' => $otroCable->id],
-    ])->assertStatus(201);
+    entregar($headers, $employee->id, [['equipment_id' => $otraLaptop->id]])->assertStatus(201);
 });
 
 it('RN-03 no repite el mismo equipo dentro de la misma entrega', function () {
@@ -447,7 +432,7 @@ it('RN-16 no agrega equipos a una entrega ya devuelta por completo', function ()
         ->assertJsonPath('errors.delivery_document_id.0', 'No se pueden agregar equipos a una entrega que ya fue devuelta por completo');
 });
 
-it('RN-01 y RN-02 también aplican al agregar un equipo suelto a la entrega', function () {
+it('RN-01 aplica y RN-02 no al agregar un equipo suelto a la entrega', function () {
     Storage::fake('public');
     $headers = headersDeReglas();
     ['employee' => $employee, 'otro' => $otro, 'laptop' => $laptop, 'otraLaptop' => $otraLaptop, 'mouse' => $mouse] = escenarioDeReglas();
@@ -466,13 +451,12 @@ it('RN-01 y RN-02 también aplican al agregar un equipo suelto a la entrega', fu
         ->assertStatus(422)
         ->assertJsonPath('errors.equipment_id.0', 'El equipo ya está asignado en otra entrega y no se ha devuelto');
 
-    // RN-02: el empleado de la primera entrega ya tiene una laptop.
+    // RN-02 eliminada: el empleado puede recibir una segunda laptop.
     test()->postJson('/api/delivery_document_details', [
         'delivery_document_id' => $primera,
         'equipment_id' => $otraLaptop->id,
     ], $headers)
-        ->assertStatus(422)
-        ->assertJsonPath('errors.equipment_id.0', 'El empleado ya tiene asignado un equipo de tipo laptop');
+        ->assertStatus(201);
 });
 
 // ---------------------------------------------------------------------------
